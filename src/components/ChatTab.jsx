@@ -1,0 +1,337 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Send, MapPin, Paperclip, AlertCircle, Info, Sparkles } from 'lucide-react';
+import { chatAPI, authAPI } from '../api';
+
+export default function ChatTab({ trekId, members }) {
+  const queryClient = useQueryClient();
+  const currentUser = authAPI.getCurrentUser();
+  
+  const [messages, setMessages] = useState([]);
+  const [inputVal, setInputVal] = useState('');
+  const [wsConnected, setWsConnected] = useState(false);
+  const [uploadUrl, setUploadUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+
+  const wsRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  // Load message logs from REST on mount
+  const { data: initialMessages = [] } = useQuery({
+    queryKey: ['chatMessages', trekId],
+    queryFn: () => chatAPI.listMessages(trekId),
+  });
+
+  useEffect(() => {
+    if (initialMessages.length > 0) {
+      setMessages(initialMessages);
+    }
+  }, [initialMessages]);
+
+  // WebSocket Connection
+  useEffect(() => {
+    const wsUrl = chatAPI.getWebSocketUrl(trekId);
+    
+    // Fallback: If Channels is disabled on backend, we will just poll HTTP every 5 seconds
+    let pollInterval = null;
+    
+    try {
+      const socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
+
+      socket.onopen = () => {
+        setWsConnected(true);
+        console.log('WebSocket connected to group:', trekId);
+      };
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.error) {
+          console.error("WS error:", data.error);
+          return;
+        }
+        setMessages(prev => {
+          // Prevent duplicates
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+      };
+
+      socket.onclose = () => {
+        setWsConnected(false);
+        // Start HTTP polling if socket closes (meaning backend doesn't support websockets locally)
+        pollInterval = setInterval(async () => {
+          try {
+            const fresh = await chatAPI.listMessages(trekId);
+            setMessages(fresh);
+          } catch (err) {
+            console.error("Polling chat failed:", err);
+          }
+        }, 5000);
+      };
+
+      socket.onerror = () => {
+        setWsConnected(false);
+        console.error('WebSocket error for group:', trekId);
+      };
+    } catch (e) {
+      console.warn("WebSocket initiation failed. Falling back to HTTP polling.", e);
+      setWsConnected(false);
+      pollInterval = setInterval(async () => {
+        try {
+          const fresh = await chatAPI.listMessages(trekId);
+          setMessages(fresh);
+        } catch (err) {
+          console.error("Polling chat failed:", err);
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (wsRef.current) wsRef.current.close();
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [trekId]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // HTTP fallback mutation for sending message
+  const sendMessageMutation = useMutation({
+    mutationFn: ({ content, type, extra }) => chatAPI.sendMessage(trekId, content, type, extra),
+    onSuccess: (data) => {
+      setMessages(prev => [...prev, data]);
+    }
+  });
+
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (!inputVal.trim() && !uploadUrl) return;
+
+    const msgType = uploadUrl ? 'DOCUMENT' : 'TEXT';
+    const textContent = uploadUrl ? `Shared a file: ${inputVal || 'Attachment'}` : inputVal;
+    
+    if (wsConnected && wsRef.current) {
+      // Send via WebSocket
+      wsRef.current.send(JSON.stringify({
+        message_type: msgType,
+        content: textContent,
+        token_user_id: currentUser.id  // Fallback identifier
+      }));
+    } else {
+      // Fallback to HTTP POST
+      sendMessageMutation.mutate({
+        content: textContent,
+        type: msgType,
+        extra: uploadUrl ? { file_url: uploadUrl } : {}
+      });
+    }
+
+    setInputVal('');
+    setUploadUrl('');
+  };
+
+  const handleShareLocation = () => {
+    // Attempt standard browser geolocation API
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const locContent = `GPS Location Shared: [${lat.toFixed(4)}, ${lng.toFixed(4)}]`;
+          
+          if (wsConnected && wsRef.current) {
+            wsRef.current.send(JSON.stringify({
+              message_type: 'LOCATION',
+              content: locContent,
+              latitude: lat,
+              longitude: lng,
+            }));
+          } else {
+            sendMessageMutation.mutate({
+              content: locContent,
+              type: 'LOCATION',
+              extra: { latitude: lat, longitude: lng }
+            });
+          }
+        },
+        () => {
+          // Mock coordinates if GPS fails
+          const lat = 12.9716 + (Math.random() - 0.5) * 0.05;
+          const lng = 77.5946 + (Math.random() - 0.5) * 0.05;
+          const locContent = `GPS Coordinates (Simulated): [${lat.toFixed(4)}, ${lng.toFixed(4)}]`;
+          
+          if (wsConnected && wsRef.current) {
+            wsRef.current.send(JSON.stringify({
+              message_type: 'LOCATION',
+              content: locContent,
+              latitude: lat,
+              longitude: lng,
+            }));
+          } else {
+            sendMessageMutation.mutate({
+              content: locContent,
+              type: 'LOCATION',
+              extra: { latitude: lat, longitude: lng }
+            });
+          }
+        }
+      );
+    }
+  };
+
+  return (
+    <div className="glass-panel border border-dark-border/30 rounded-xl overflow-hidden flex flex-col h-[60vh]">
+      {/* Header bar / status */}
+      <div className="px-5 py-3 border-b border-dark-border/40 flex items-center justify-between text-xs text-dark-muted bg-dark-card/40">
+        <div className="flex items-center gap-1.5 font-bold">
+          <span className={`w-2.5 h-2.5 rounded-full ${wsConnected ? 'bg-primary' : 'bg-yellow-500 animate-pulse'}`} />
+          <span>{wsConnected ? 'Real-time Channel Connected' : 'HTTP Sync Mode (Active)'}</span>
+        </div>
+        <span>{members?.length || 0} online</span>
+      </div>
+
+      {/* Messages viewport */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center text-dark-muted">
+            <Info className="w-8 h-8 opacity-40 mb-2" />
+            <p className="text-xs">No chat logs yet. Say hello to your squad!</p>
+          </div>
+        ) : (
+          messages.map((msg) => {
+            const isMe = currentUser && String(msg.sender) === String(currentUser.id);
+            return (
+              <div 
+                key={msg.id} 
+                className={`flex gap-3 text-left ${isMe ? 'justify-end' : 'justify-start'}`}
+              >
+                {!isMe && (
+                  <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase self-end">
+                    {msg.sender_username[0]}
+                  </div>
+                )}
+                
+                <div className={`max-w-[70%] space-y-1`}>
+                  {!isMe && (
+                    <span className="text-[10px] text-dark-muted font-semibold ml-1">{msg.sender_username}</span>
+                  )}
+                  
+                  <div className={`p-3 rounded-xl border text-sm leading-relaxed ${
+                    isMe 
+                      ? 'bg-primary border-primary/20 text-dark-bg font-medium rounded-br-none' 
+                      : 'bg-dark-card border-dark-border/50 text-dark-text rounded-bl-none'
+                  }`}>
+                    {/* Render by type */}
+                    {msg.message_type === 'LOCATION' && (
+                      <div className="space-y-2">
+                        <p className="flex items-center gap-1 font-bold text-xs">
+                          <MapPin className="w-4 h-4 shrink-0" />
+                          <span>Coordinates Pin Shared</span>
+                        </p>
+                        <p className="text-xs opacity-90">{msg.content}</p>
+                        <a 
+                          href={`https://www.openstreetmap.org/?mlat=${msg.latitude}&mlon=${msg.longitude}#map=16/${msg.latitude}/${msg.longitude}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className={`inline-block text-[10px] font-bold underline ${isMe ? 'text-dark-bg hover:opacity-80' : 'text-primary'}`}
+                        >
+                          View OpenStreetMap
+                        </a>
+                      </div>
+                    )}
+
+                    {msg.message_type === 'DOCUMENT' && (
+                      <div className="space-y-1.5">
+                        <p className="flex items-center gap-1 font-bold text-xs">
+                          <Paperclip className="w-4 h-4 shrink-0" />
+                          <span>Attachment Link</span>
+                        </p>
+                        <a 
+                          href={msg.file_url} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="block text-xs underline break-all font-semibold"
+                        >
+                          {msg.content}
+                        </a>
+                      </div>
+                    )}
+
+                    {msg.message_type === 'TEXT' && (
+                      <p>{msg.content}</p>
+                    )}
+                  </div>
+                  
+                  <p className={`text-[9px] text-dark-muted ${isMe ? 'text-right mr-1' : 'ml-1'}`}>
+                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={scrollRef} />
+      </div>
+
+      {/* Upload attachment helper drawer */}
+      {isUploading && (
+        <div className="px-5 py-3 border-t border-dark-border/30 bg-dark-bg/60 flex items-center justify-between text-xs gap-3">
+          <input
+            type="url"
+            placeholder="Paste document / image URL (e.g. drive/dropbox link)"
+            value={uploadUrl}
+            onChange={(e) => setUploadUrl(e.target.value)}
+            className="flex-1 p-2 rounded bg-dark-card border border-dark-border text-dark-text outline-none text-xs"
+          />
+          <button 
+            onClick={() => setIsUploading(false)} 
+            className="text-xs text-dark-muted hover:text-dark-text font-bold"
+          >
+            Done
+          </button>
+        </div>
+      )}
+
+      {/* Input controls */}
+      <form onSubmit={handleSend} className="p-4 border-t border-dark-border/30 bg-dark-bg/30 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setIsUploading(!isUploading)}
+          className={`p-2.5 rounded-lg border transition duration-200 shrink-0 ${
+            uploadUrl ? 'border-primary/40 bg-primary/10 text-primary' : 'border-dark-border text-dark-muted hover:border-dark-border/80'
+          }`}
+          title="Attach Document Link"
+        >
+          <Paperclip className="w-5 h-5" />
+        </button>
+
+        <button
+          type="button"
+          onClick={handleShareLocation}
+          className="p-2.5 rounded-lg border border-dark-border text-dark-muted hover:border-dark-border/80 transition duration-200 shrink-0"
+          title="Share Current Coordinates"
+        >
+          <MapPin className="w-5 h-5" />
+        </button>
+
+        <input 
+          type="text" 
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          placeholder={uploadUrl ? "Type description of the link..." : "Send a message..."}
+          className="flex-1 px-4 py-3 rounded-lg glass-input text-dark-text text-sm"
+        />
+
+        <button 
+          type="submit" 
+          className="p-3 bg-primary hover:bg-primary-hover text-dark-bg rounded-lg transition duration-200 shrink-0 shadow-md shadow-primary/20"
+        >
+          <Send className="w-4 h-4" />
+        </button>
+      </form>
+    </div>
+  );
+}
