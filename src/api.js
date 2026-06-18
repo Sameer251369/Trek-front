@@ -1,6 +1,9 @@
 import axios from 'axios';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://back-hyn6.onrender.com";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const WS_BASE_URL =
+  import.meta.env.VITE_WS_URL || "wss://back-hyn6.onrender.com";
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -143,15 +146,12 @@ export const chatAPI = {
     return response.data;
   },
   getWebSocketUrl: (groupId) => {
-    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host.includes('localhost') || window.location.host.includes('127.0.0.1')
-      ? 'localhost:8000'
-      : window.location.host;
-    
-    const token = localStorage.getItem('access_token');
-    const queryParams = token ? `?token=${encodeURIComponent(token)}` : '';
-    return `${wsProto}//${host}/ws/chat/${groupId}/${queryParams}`;
-  },
+  const token = localStorage.getItem("access_token");
+
+  return token
+    ? `${WS_BASE_URL}/ws/chat/${groupId}/?token=${encodeURIComponent(token)}`
+    : `${WS_BASE_URL}/ws/chat/${groupId}/`;
+},
 };
 
 export const equipmentAPI = {
