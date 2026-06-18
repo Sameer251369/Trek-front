@@ -90,6 +90,19 @@ export const treksAPI = {
     return response.data;
   },
   create: async (data) => {
+    const hasFile = data.destination_image instanceof File;
+    if (hasFile) {
+      const formData = new FormData();
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
+        }
+      });
+      const response = await api.post('/treks/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data;
+    }
     const response = await api.post('/treks/', data);
     return response.data;
   },
@@ -185,8 +198,29 @@ export const usersAPI = {
     return response.data;
   },
   updateProfile: async (data) => {
+    const hasFile = data.profile?.profile_picture instanceof File;
+    const removePicture = data.remove_profile_picture;
+
+    if (hasFile || removePicture) {
+      const formData = new FormData();
+      if (data.profile) {
+        Object.entries(data.profile).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value);
+          }
+        });
+      }
+      if (removePicture) {
+        formData.append('remove_profile_picture', 'true');
+      }
+      const response = await api.patch('/users/me/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      localStorage.setItem('user', JSON.stringify(response.data));
+      return response.data;
+    }
+
     const response = await api.patch('/users/me/', data);
-    // Sync current user details
     localStorage.setItem('user', JSON.stringify(response.data));
     return response.data;
   },

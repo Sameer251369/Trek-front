@@ -21,6 +21,9 @@ export default function Dashboard() {
   const [newTrekDate, setNewTrekDate] = useState('');
   const [newTrekCapacity, setNewTrekCapacity] = useState(10);
   const [newTrekDiff, setNewTrekDiff] = useState('MODERATE');
+  const [newTrekDestination, setNewTrekDestination] = useState('');
+  const [newTrekImage, setNewTrekImage] = useState(null);
+  const [newTrekImagePreview, setNewTrekImagePreview] = useState(null);
   const [formError, setFormError] = useState(null);
 
   // Queries
@@ -41,6 +44,9 @@ export default function Dashboard() {
       setNewTrekDate('');
       setNewTrekCapacity(10);
       setNewTrekDiff('MODERATE');
+      setNewTrekDestination('');
+      setNewTrekImage(null);
+      setNewTrekImagePreview(null);
       setFormError(null);
       // Redirect to the new workspace!
       navigate(`/trek/${data.id}`);
@@ -78,9 +84,11 @@ export default function Dashboard() {
     createTrekMutation.mutate({
       title: newTrekTitle,
       description: newTrekDesc,
+      destination: newTrekDestination,
       date: newTrekDate,
       capacity: parseInt(newTrekCapacity),
       difficulty: newTrekDiff,
+      ...(newTrekImage ? { destination_image: newTrekImage } : {}),
     });
   };
 
@@ -167,8 +175,22 @@ export default function Dashboard() {
             return (
               <div 
                 key={trek.id} 
-                className="glass-panel rounded-xl p-6 flex flex-col justify-between border border-dark-border/30 hover:border-primary/30 transition duration-300 relative group overflow-hidden"
+                className="glass-panel rounded-xl flex flex-col justify-between border border-dark-border/30 hover:border-primary/30 transition duration-300 relative group overflow-hidden"
               >
+                {/* Destination cover image */}
+                {trek.destination_image_url ? (
+                  <div className="h-36 w-full overflow-hidden">
+                    <img
+                      src={trek.destination_image_url}
+                      alt={trek.destination || trek.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                  </div>
+                ) : (
+                  <div className="h-20 w-full bg-gradient-to-br from-primary/10 to-dark-bg border-b border-dark-border/20" />
+                )}
+
+                <div className="p-6 flex flex-col flex-1">
                 {/* Micro glow line */}
                 <div className="absolute top-0 left-0 right-0 h-[3px] bg-transparent group-hover:bg-primary/20 transition duration-300" />
                 
@@ -184,6 +206,9 @@ export default function Dashboard() {
                   </div>
 
                   <div>
+                    {trek.destination && (
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">{trek.destination}</p>
+                    )}
                     <h3 className="text-lg font-bold text-dark-text leading-snug group-hover:text-primary transition duration-200">
                       {trek.title}
                     </h3>
@@ -240,6 +265,7 @@ export default function Dashboard() {
                     </button>
                   )}
                 </div>
+                </div>
               </div>
             );
           })}
@@ -283,6 +309,46 @@ export default function Dashboard() {
                   required
                   className="w-full p-2.5 rounded-lg glass-input text-dark-text"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-dark-muted mb-1.5">Destination</label>
+                <input 
+                  type="text" 
+                  value={newTrekDestination}
+                  onChange={(e) => setNewTrekDestination(e.target.value)}
+                  placeholder="Kudremukh Peak, Karnataka"
+                  className="w-full p-2.5 rounded-lg glass-input text-dark-text"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-dark-muted mb-1.5">Destination Image (optional)</label>
+                {newTrekImagePreview ? (
+                  <div className="relative rounded-lg overflow-hidden border border-dark-border/40">
+                    <img src={newTrekImagePreview} alt="Preview" className="w-full h-32 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => { setNewTrekImage(null); setNewTrekImagePreview(null); }}
+                      className="absolute top-2 right-2 p-1 bg-dark-bg/80 rounded-full text-dark-muted hover:text-dark-text"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setNewTrekImage(file);
+                        setNewTrekImagePreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    className="w-full text-sm text-dark-muted file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-primary/10 file:text-primary file:font-bold"
+                  />
+                )}
               </div>
 
               <div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Sparkles, Phone, Award, Compass, Edit3, Save, CheckCircle, Lock } from 'lucide-react';
+import { Shield, Sparkles, Phone, Award, Edit3, Save, CheckCircle, Lock, Camera, X } from 'lucide-react';
 import { usersAPI, authAPI } from '../api';
 
 export default function Profile() {
@@ -17,6 +17,9 @@ export default function Profile() {
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState(null);
+  const [removePicture, setRemovePicture] = useState(false);
 
   // Queries
   const { data: userProfile, isLoading, isError } = useQuery({
@@ -41,6 +44,9 @@ export default function Profile() {
       queryClient.invalidateQueries({ queryKey: ['profile', id] });
       setIsEditing(false);
       setSaveSuccess(true);
+      setProfilePicture(null);
+      setProfilePicturePreview(null);
+      setRemovePicture(false);
       setTimeout(() => setSaveSuccess(false), 3000);
       
       // Update global context by refreshing cached user details
@@ -70,15 +76,41 @@ export default function Profile() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    updateProfileMutation.mutate({
+    const payload = {
       profile: {
         bio,
         experience_level: experience,
         emergency_contact_name: emergencyName,
         emergency_contact_phone: emergencyPhone,
-      }
-    });
+      },
+    };
+    if (profilePicture) {
+      payload.profile.profile_picture = profilePicture;
+    }
+    if (removePicture) {
+      payload.remove_profile_picture = true;
+    }
+    updateProfileMutation.mutate(payload);
   };
+
+  const handlePictureChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicture(file);
+      setProfilePicturePreview(URL.createObjectURL(file));
+      setRemovePicture(false);
+    }
+  };
+
+  const handleRemovePicture = () => {
+    setProfilePicture(null);
+    setProfilePicturePreview(null);
+    setRemovePicture(true);
+  };
+
+  const avatarUrl = removePicture
+    ? null
+    : profilePicturePreview || userProfile.profile?.profile_picture_url;
 
   // List of all achievements in system (since user details includes their earned badges)
   // Let's list the global achievements and mark the ones earned by this user
@@ -99,8 +131,24 @@ export default function Profile() {
         <div className="absolute -right-20 -top-20 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row gap-5 items-center">
-          <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center text-primary text-3xl font-bold shadow-lg shadow-primary/10 shrink-0">
-            {userProfile.username[0].toUpperCase()}
+          <div className="relative shrink-0">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={userProfile.username}
+                className="w-20 h-20 rounded-full border-2 border-primary object-cover shadow-lg shadow-primary/10"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center text-primary text-3xl font-bold shadow-lg shadow-primary/10">
+                {userProfile.username[0].toUpperCase()}
+              </div>
+            )}
+            {isOwnProfile && isEditing && (
+              <label className="absolute -bottom-1 -right-1 p-1.5 bg-primary text-dark-bg rounded-full cursor-pointer shadow-md hover:bg-primary-hover transition">
+                <Camera className="w-4 h-4" />
+                <input type="file" accept="image/*" className="hidden" onChange={handlePictureChange} />
+              </label>
+            )}
           </div>
           
           <div className="text-center sm:text-left space-y-1.5">
@@ -151,6 +199,19 @@ export default function Profile() {
           {isEditing ? (
             <form onSubmit={handleSave} className="glass-panel p-6 rounded-xl border border-dark-border/30 space-y-4 text-sm">
               <h2 className="text-lg font-bold text-dark-text border-b border-dark-border/30 pb-3 mb-4">Edit Profile Information</h2>
+
+              {(avatarUrl || profilePicture) && (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRemovePicture}
+                    className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Remove profile picture
+                  </button>
+                </div>
+              )}
               
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-dark-muted mb-1.5">Biography</label>

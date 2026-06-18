@@ -50,6 +50,21 @@ export default function ChatTab({ trekId, members }) {
           console.error("WS error:", data.error);
           return;
         }
+        
+        // Handle profile updates
+        if (data.type === 'profile_update') {
+          const profileUpdate = data.data;
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.sender === profileUpdate.user_id 
+                ? { ...msg, sender_profile: profileUpdate.profile }
+                : msg
+            )
+          );
+          console.log("Profile updated for user:", profileUpdate.username);
+          return;
+        }
+        
         setMessages(prev => {
           // Prevent duplicates
           if (prev.some(m => m.id === data.id)) return prev;
@@ -203,20 +218,37 @@ export default function ChatTab({ trekId, members }) {
         ) : (
           messages.map((msg) => {
             const isMe = currentUser && String(msg.sender) === String(currentUser.id);
+            const profilePic = msg.sender_profile?.profile_picture_url;
+            const senderName = msg.sender_username;
+            
             return (
               <div 
                 key={msg.id} 
                 className={`flex gap-3 text-left ${isMe ? 'justify-end' : 'justify-start'}`}
               >
                 {!isMe && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase self-end">
-                    {msg.sender_username[0]}
-                  </div>
+                  profilePic ? (
+                    <img 
+                      src={profilePic} 
+                      alt={senderName}
+                      className="w-8 h-8 rounded-full object-cover border border-primary/20 self-end flex-shrink-0"
+                      title={senderName}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase self-end flex-shrink-0">
+                      {senderName[0]}
+                    </div>
+                  )
                 )}
                 
                 <div className={`max-w-[70%] space-y-1`}>
                   {!isMe && (
-                    <span className="text-[10px] text-dark-muted font-semibold ml-1">{msg.sender_username}</span>
+                    <div className="flex items-center gap-2 ml-1">
+                      <span className="text-[10px] text-dark-muted font-semibold">{senderName}</span>
+                      {msg.sender_profile?.is_verified && (
+                        <span className="text-[10px] text-primary font-bold">✓ Verified</span>
+                      )}
+                    </div>
                   )}
                   
                   <div className={`p-3 rounded-xl border text-sm leading-relaxed ${
