@@ -5,6 +5,15 @@ const API_BASE_URL =
 const WS_BASE_URL =
   import.meta.env.VITE_WS_URL || "wss://back-hyn6.onrender.com";
 
+// Rewrites any localhost media URLs to the live backend
+export const fixMediaUrl = (url) => {
+  if (!url) return url;
+  // Replace any localhost or 127.0.0.1 origin with the live backend
+  return url
+    .replace(/http:\/\/localhost:\d+/g, API_BASE_URL)
+    .replace(/http:\/\/127\.0\.0\.1:\d+/g, API_BASE_URL);
+};
+
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
   headers: {
@@ -24,9 +33,15 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle token refresh
+// Response interceptor to handle token refresh + rewrite media URLs
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Deep-rewrite any localhost media URLs in the response data
+    if (response.data) {
+      response.data = rewriteMediaUrls(response.data);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -56,6 +71,24 @@ api.interceptors.response.use(
   }
 );
 
+// Recursively walk any object/array and fix localhost media URLs in string values
+function rewriteMediaUrls(data) {
+  if (typeof data === 'string') {
+    return fixMediaUrl(data);
+  }
+  if (Array.isArray(data)) {
+    return data.map(rewriteMediaUrls);
+  }
+  if (data !== null && typeof data === 'object') {
+    const result = {};
+    for (const key of Object.keys(data)) {
+      result[key] = rewriteMediaUrls(data[key]);
+    }
+    return result;
+  }
+  return data;
+}
+
 export const authAPI = {
   login: async (username, password) => {
     const response = await axios.post(`${API_BASE_URL}/api/token/`, { username, password });
@@ -79,7 +112,10 @@ export const authAPI = {
   },
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr) return null;
+    const user = JSON.parse(userStr);
+    // Also fix any stale localhost URLs stored in the cached user object
+    return rewriteMediaUrls(user);
   },
 };
 
@@ -146,12 +182,11 @@ export const chatAPI = {
     return response.data;
   },
   getWebSocketUrl: (groupId) => {
-  const token = localStorage.getItem("access_token");
-
-  return token
-    ? `${WS_BASE_URL}/ws/chat/${groupId}/?token=${encodeURIComponent(token)}`
-    : `${WS_BASE_URL}/ws/chat/${groupId}/`;
-},
+    const token = localStorage.getItem("access_token");
+    return token
+      ? `${WS_BASE_URL}/ws/chat/${groupId}/?token=${encodeURIComponent(token)}`
+      : `${WS_BASE_URL}/ws/chat/${groupId}/`;
+  },
 };
 
 export const equipmentAPI = {
