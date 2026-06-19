@@ -77,17 +77,22 @@ export default function Dashboard() {
   });
 
   const resetForm = () => {
-    setNewTrekTitle('');
-    setNewTrekDesc('');
-    setNewTrekDate('');
-    setNewTrekCapacity('10');
-    setNewTrekDiff('MODERATE');
-    setNewTrekDestination('');
-    setNewTrekImage(null);
-    if (newTrekImagePreview) URL.revokeObjectURL(newTrekImagePreview);
-    newTrekImagePreview = null;
-    setFormError(null);
-  };
+  setNewTrekTitle('');
+  setNewTrekDesc('');
+  setNewTrekDate('');
+  setNewTrekCapacity('10');
+  setNewTrekDiff('MODERATE');
+  setNewTrekDestination('');
+  setNewTrekImage(null);
+  
+  // ✅ Correctly clear the state using its setter function
+  if (newTrekImagePreview) {
+    URL.revokeObjectURL(newTrekImagePreview);
+  }
+  setNewTrekImagePreview(null); 
+  
+  setFormError(null);
+};
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
