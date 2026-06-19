@@ -77,29 +77,27 @@ export default function Dashboard() {
   });
 
   const resetForm = () => {
-  setNewTrekTitle('');
-  setNewTrekDesc('');
-  setNewTrekDate('');
-  setNewTrekCapacity('10');
-  setNewTrekDiff('MODERATE');
-  setNewTrekDestination('');
-  setNewTrekImage(null);
-  
-  // ✅ Correctly clear the state using its setter function
-  if (newTrekImagePreview) {
-    URL.revokeObjectURL(newTrekImagePreview);
-  }
-  setNewTrekImagePreview(null); 
-  
-  setFormError(null);
-};
+    setNewTrekTitle('');
+    setNewTrekDesc('');
+    setNewTrekDate('');
+    setNewTrekCapacity('10');
+    setNewTrekDiff('MODERATE');
+    setNewTrekDestination('');
+    setNewTrekImage(null);
+    
+    if (newTrekImagePreview) {
+      URL.revokeObjectURL(newTrekImagePreview);
+    }
+    setNewTrekImagePreview(null); 
+    setFormError(null);
+  };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     resetForm();
   };
 
-  // Memoized or Inline Client-side filtering logic
+  // Client-side filtering logic
   const filteredTreks = treks.filter(trek => {
     const q = debouncedSearchTerm.toLowerCase();
     const matchesSearch =
@@ -110,6 +108,7 @@ export default function Dashboard() {
     return matchesSearch && matchesDiff;
   });
 
+  // FIXED: Structured payload pipeline into the React Query Mutation
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     setFormError(null);
@@ -120,13 +119,16 @@ export default function Dashboard() {
     }
 
     const formData = new FormData();
-    formData.append('title', newTrekTitle.trim());
-    formData.append('description', newTrekDesc.trim());
-    formData.append('destination', newTrekDestination.trim());
+    formData.append('title', newTrekTitle);
+    formData.append('description', newTrekDesc);
+    formData.append('destination', newTrekDestination);
     formData.append('date', newTrekDate);
-    formData.append('capacity', parseInt(newTrekCapacity, 10));
+    formData.append('capacity', newTrekCapacity);
     formData.append('difficulty', newTrekDiff);
-    if (newTrekImage) formData.append('destination_image', newTrekImage);
+
+    if (newTrekImage) {
+      formData.append('destination_image', newTrekImage);
+    }
 
     createTrekMutation.mutate(formData);
   };
