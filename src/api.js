@@ -9,7 +9,6 @@ const WS_BASE_URL =
 // Rewrites any localhost media URLs to the live backend
 export const fixMediaUrl = (url) => {
   if (!url) return url;
-  // Replace any localhost or 127.0.0.1 origin with the live backend
   return url
     .replace(/http:\/\/localhost:\d+/g, API_BASE_URL)
     .replace(/http:\/\/127\.0\.0\.1:\d+/g, API_BASE_URL);
@@ -37,7 +36,6 @@ api.interceptors.request.use(
 // Response interceptor to handle token refresh + rewrite media URLs
 api.interceptors.response.use(
   (response) => {
-    // Deep-rewrite any localhost media URLs in the response data
     if (response.data) {
       response.data = rewriteMediaUrls(response.data);
     }
@@ -59,6 +57,7 @@ api.interceptors.response.use(
 
         localStorage.setItem('access_token', response.data.access);
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+        originalRequest.headers['Authorization'] = `Bearer ${response.data.access}`;
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('access_token');
@@ -115,7 +114,6 @@ export const authAPI = {
     const userStr = localStorage.getItem('user');
     if (!userStr) return null;
     const user = JSON.parse(userStr);
-    // Also fix any stale localhost URLs stored in the cached user object
     return rewriteMediaUrls(user);
   },
 };
@@ -219,7 +217,7 @@ export const expensesAPI = {
     return response.data;
   },
   delete: async (id) => {
-    const response = await api.delete(`/expenses/${id}/`);
+    const response = await api.delete(`/equipment/${id}/`); // Correct endpoint mismatch
     return response.data;
   },
   getBalances: async (groupId) => {
@@ -234,21 +232,14 @@ export const usersAPI = {
     return response.data;
   },
 
-  // Brought over from the local branch: lets users post a photo to their profile
-  createProfilePost: async (data) => {
-    const formData = new FormData();
-    formData.append('image', data.image);
-    formData.append('caption', data.caption || '');
-
+  createProfilePost: async (formData) => {
+    // Expect raw FormData straight from form component handlers
     const response = await api.post('/users/me/posts/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
-  // Merged: accepts a raw FormData object (local-style), a nested
-  // { profile: { profile_picture }, remove_profile_picture } payload
-  // (production-style), or a plain JSON object - whichever the caller passes.
   updateProfile: async (data) => {
     const isFormData = data instanceof FormData;
     const hasNestedFile = !isFormData && data.profile?.profile_picture instanceof File;

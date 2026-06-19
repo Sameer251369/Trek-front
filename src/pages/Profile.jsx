@@ -71,7 +71,7 @@ export default function Profile() {
         stored.profile = data.profile;
         localStorage.setItem('user', JSON.stringify(stored));
       }
-      // Let other parts of the app (e.g. header/avatar) know the user changed
+      // Let other parts of the app know the user changed
       window.dispatchEvent(new Event('userUpdated'));
     },
   });
@@ -103,27 +103,27 @@ export default function Profile() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    const payload = {
-      profile: {
-        bio,
-        experience_level: experience,
-        emergency_contact_name: emergencyName,
-        emergency_contact_phone: emergencyPhone,
-      },
-    };
+    
+    // Construct FormData so files transmit correctly to Django REST Framework's MultiPartParser
+    const formData = new FormData();
+    formData.append('bio', bio);
+    formData.append('experience_level', experience);
+    formData.append('emergency_contact_name', emergencyName);
+    formData.append('emergency_contact_phone', emergencyPhone);
+
     if (profilePicture) {
-      payload.profile.profile_picture = profilePicture;
+      formData.append('profile_picture', profilePicture);
     }
     if (removePicture) {
-      payload.remove_profile_picture = true;
+      formData.append('remove_profile_picture', 'true');
     }
-    updateProfileMutation.mutate(payload);
+
+    updateProfileMutation.mutate(formData);
   };
 
   const handlePictureChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Release the previous preview URL before creating a new one
       if (profilePicturePreview) {
         URL.revokeObjectURL(profilePicturePreview);
       }
@@ -145,15 +145,19 @@ export default function Profile() {
   const handlePostSubmit = (e) => {
     e.preventDefault();
     if (!postImage) return;
-    createPostMutation.mutate({ image: postImage, caption: postCaption });
+
+    // Use FormData for creating public media posts
+    const formData = new FormData();
+    formData.append('image', postImage);
+    formData.append('caption', postCaption);
+
+    createPostMutation.mutate(formData);
   };
 
   const avatarUrl = removePicture
     ? null
     : profilePicturePreview || userProfile.profile?.profile_picture_url;
 
-  // List of all achievements in system (since user details includes their earned badges)
-  // Let's list the global achievements and mark the ones earned by this user
   const globalAchievements = [
     { name: "First Trek", desc: "Completed your first trekking expedition.", icon: "Compass" },
     { name: "Mountain Explorer", desc: "Completed 5 trekking expeditions.", icon: "Compass" },
@@ -170,7 +174,6 @@ export default function Profile() {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Top Card */}
       <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-dark-border/30 bg-gradient-to-br from-dark-card to-dark-bg flex flex-col md:flex-row gap-6 items-start justify-between relative overflow-hidden">
-        {/* Glow */}
         <div className="absolute -right-20 -top-20 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row gap-5 items-center">
@@ -245,7 +248,6 @@ export default function Profile() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Left Column: Form or Details */}
         <div className="md:col-span-2 space-y-6">
           {isEditing ? (
             <form onSubmit={handleSave} className="glass-panel p-6 rounded-xl border border-dark-border/30 space-y-4 text-sm">
@@ -355,7 +357,7 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Public Posts */}
+          {/* Public Posts Section */}
           <div className="glass-panel p-6 rounded-xl border border-dark-border/30 space-y-5 text-sm">
             <h2 className="text-sm font-bold uppercase tracking-widest text-dark-muted flex items-center gap-2">
               <Image className="w-4 h-4 text-primary" />
