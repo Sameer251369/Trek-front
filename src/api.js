@@ -124,19 +124,28 @@ export const treksAPI = {
     const response = await api.get(`/treks/${id}/`);
     return response.data;
   },
-  // FIXED: Standardized to reliably dispatch FormData multipart encoding payloads to Django
+  // FIXED: Now correctly handles a FormData instance passed in directly (e.g. from
+  // Dashboard.jsx) instead of silently producing an empty payload via Object.entries(),
+  // which does not work on FormData objects. Falls back to building FormData from a
+  // plain object for any other callers.
   create: async (data) => {
-    const formData = new FormData();
-    
-    Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        // Skips text placeholders so the backend treats it cleanly as an empty media slot
-        if (key === 'destination_image' && typeof value === 'string') {
-          return; 
+    let formData;
+
+    if (data instanceof FormData) {
+      formData = data;
+    } else {
+      formData = new FormData();
+
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          // Skips text placeholders so the backend treats it cleanly as an empty media slot
+          if (key === 'destination_image' && typeof value === 'string') {
+            return;
+          }
+          formData.append(key, value);
         }
-        formData.append(key, value);
-      }
-    });
+      });
+    }
 
     const response = await api.post('/treks/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
