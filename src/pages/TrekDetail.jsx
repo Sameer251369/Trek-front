@@ -64,7 +64,7 @@ export default function TrekDetail() {
   const pendingRequests = joinRequests.filter(req => req.status === 'PENDING');
 
   const tabs = [
-    { id: 'chat', label: 'Trek Chat', icon: MessageSquare },
+    { id: 'chat', label: 'SQuad Chat', icon: MessageSquare },
     { id: 'map', label: 'Route Planner', icon: Map },
     { id: 'gear', label: 'Belongings', icon: Briefcase },
     { id: 'expenses', label: 'Expense Splitter', icon: DollarSign },
