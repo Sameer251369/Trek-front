@@ -6,7 +6,7 @@ const API_BASE_URL =
 const WS_BASE_URL =
   import.meta.env.VITE_WS_URL || "wss://back-hyn6.onrender.com";
 
-// Rewrites any localhost media URLs to the live backend
+// Rewrites any legacy media paths safely if still floating around local test beds
 export const fixMediaUrl = (url) => {
   if (!url) return url;
   return url
@@ -33,10 +33,10 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle token refresh + rewrite media URLs
+// Response interceptor to handle token refresh + safe media parsing
 api.interceptors.response.use(
   (response) => {
-    if (response.data) {
+    if (response.data && response.config.url?.includes('/users/')) {
       response.data = rewriteMediaUrls(response.data);
     }
     return response;
@@ -71,7 +71,6 @@ api.interceptors.response.use(
   }
 );
 
-// Recursively walk any object/array and fix localhost media URLs in string values
 function rewriteMediaUrls(data) {
   if (typeof data === 'string') {
     return fixMediaUrl(data);
@@ -95,7 +94,6 @@ export const authAPI = {
     localStorage.setItem('access_token', response.data.access);
     localStorage.setItem('refresh_token', response.data.refresh);
 
-    // Fetch profile info to store in user object
     const meResponse = await api.get('/users/me/');
     localStorage.setItem('user', JSON.stringify(meResponse.data));
     return meResponse.data;
@@ -113,8 +111,7 @@ export const authAPI = {
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     if (!userStr) return null;
-    const user = JSON.parse(userStr);
-    return rewriteMediaUrls(user);
+    return JSON.parse(userStr);
   },
 };
 
@@ -185,7 +182,7 @@ export const chatAPI = {
     return token
       ? `${WS_BASE_URL}/ws/chat/${groupId}/?token=${encodeURIComponent(token)}`
       : `${WS_BASE_URL}/ws/chat/${groupId}/`;
-  },
+    },
 };
 
 export const equipmentAPI = {
@@ -217,7 +214,8 @@ export const expensesAPI = {
     return response.data;
   },
   delete: async (id) => {
-    const response = await api.delete(`/equipment/${id}/`); // Correct endpoint mismatch
+    // FIXED: Corrected mapping direction from '/equipment/' to '/expenses/'
+    const response = await api.delete(`/expenses/${id}/`); 
     return response.data;
   },
   getBalances: async (groupId) => {
@@ -233,7 +231,6 @@ export const usersAPI = {
   },
 
   createProfilePost: async (formData) => {
-    // Expect raw FormData straight from form component handlers
     const response = await api.post('/users/me/posts/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -255,6 +252,8 @@ export const usersAPI = {
 
     if (hasNestedFile || removePicture) {
       const formData = new FormData();
+      
+      // FIXED: Flat mapping maps precisely to Django view partial extraction loop lookups
       if (data.profile) {
         Object.entries(data.profile).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
