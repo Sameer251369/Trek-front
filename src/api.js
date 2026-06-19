@@ -1,4 +1,5 @@
 import axios from 'axios';
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "https://back-hyn6.onrender.com";
 
@@ -51,7 +52,7 @@ api.interceptors.response.use(
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }
-        
+
         const response = await axios.post(`${API_BASE_URL}/api/token/refresh/`, {
           refresh: refreshToken,
         });
@@ -94,7 +95,7 @@ export const authAPI = {
     const response = await axios.post(`${API_BASE_URL}/api/token/`, { username, password });
     localStorage.setItem('access_token', response.data.access);
     localStorage.setItem('refresh_token', response.data.refresh);
-    
+
     // Fetch profile info to store in user object
     const meResponse = await api.get('/users/me/');
     localStorage.setItem('user', JSON.stringify(meResponse.data));
@@ -232,11 +233,36 @@ export const usersAPI = {
     const response = await api.get(`/users/${id}/`);
     return response.data;
   },
-  updateProfile: async (data) => {
-    const hasFile = data.profile?.profile_picture instanceof File;
-    const removePicture = data.remove_profile_picture;
 
-    if (hasFile || removePicture) {
+  // Brought over from the local branch: lets users post a photo to their profile
+  createProfilePost: async (data) => {
+    const formData = new FormData();
+    formData.append('image', data.image);
+    formData.append('caption', data.caption || '');
+
+    const response = await api.post('/users/me/posts/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  // Merged: accepts a raw FormData object (local-style), a nested
+  // { profile: { profile_picture }, remove_profile_picture } payload
+  // (production-style), or a plain JSON object - whichever the caller passes.
+  updateProfile: async (data) => {
+    const isFormData = data instanceof FormData;
+    const hasNestedFile = !isFormData && data.profile?.profile_picture instanceof File;
+    const removePicture = !isFormData && data.remove_profile_picture;
+
+    if (isFormData) {
+      const response = await api.patch('/users/me/', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      localStorage.setItem('user', JSON.stringify(response.data));
+      return response.data;
+    }
+
+    if (hasNestedFile || removePicture) {
       const formData = new FormData();
       if (data.profile) {
         Object.entries(data.profile).forEach(([key, value]) => {
@@ -255,7 +281,9 @@ export const usersAPI = {
       return response.data;
     }
 
-    const response = await api.patch('/users/me/', data);
+    const response = await api.patch('/users/me/', data, {
+      headers: { 'Content-Type': 'application/json' },
+    });
     localStorage.setItem('user', JSON.stringify(response.data));
     return response.data;
   },

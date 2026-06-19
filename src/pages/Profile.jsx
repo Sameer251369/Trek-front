@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Sparkles, Phone, Award, Edit3, Save, CheckCircle, Lock, Camera, X } from 'lucide-react';
+import {
+  Shield, Sparkles, Phone, Award, Edit3, Save, CheckCircle, Lock,
+  Camera, X, Image, Upload,
+} from 'lucide-react';
 import { usersAPI, authAPI } from '../api';
 
 export default function Profile() {
@@ -21,6 +24,10 @@ export default function Profile() {
   const [profilePicturePreview, setProfilePicturePreview] = useState(null);
   const [removePicture, setRemovePicture] = useState(false);
 
+  // Public post fields
+  const [postImage, setPostImage] = useState(null);
+  const [postCaption, setPostCaption] = useState('');
+
   // Queries
   const { data: userProfile, isLoading, isError } = useQuery({
     queryKey: ['profile', id],
@@ -37,6 +44,15 @@ export default function Profile() {
     }
   }, [userProfile]);
 
+  // Clean up the object URL when the preview changes or unmounts, to avoid leaking memory
+  useEffect(() => {
+    return () => {
+      if (profilePicturePreview) {
+        URL.revokeObjectURL(profilePicturePreview);
+      }
+    };
+  }, [profilePicturePreview]);
+
   // Mutations
   const updateProfileMutation = useMutation({
     mutationFn: usersAPI.updateProfile,
@@ -48,13 +64,24 @@ export default function Profile() {
       setProfilePicturePreview(null);
       setRemovePicture(false);
       setTimeout(() => setSaveSuccess(false), 3000);
-      
+
       // Update global context by refreshing cached user details
       const stored = authAPI.getCurrentUser();
       if (stored) {
         stored.profile = data.profile;
         localStorage.setItem('user', JSON.stringify(stored));
       }
+      // Let other parts of the app (e.g. header/avatar) know the user changed
+      window.dispatchEvent(new Event('userUpdated'));
+    },
+  });
+
+  const createPostMutation = useMutation({
+    mutationFn: usersAPI.createProfilePost,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', id] });
+      setPostImage(null);
+      setPostCaption('');
     },
   });
 
@@ -96,6 +123,10 @@ export default function Profile() {
   const handlePictureChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Release the previous preview URL before creating a new one
+      if (profilePicturePreview) {
+        URL.revokeObjectURL(profilePicturePreview);
+      }
       setProfilePicture(file);
       setProfilePicturePreview(URL.createObjectURL(file));
       setRemovePicture(false);
@@ -103,9 +134,18 @@ export default function Profile() {
   };
 
   const handleRemovePicture = () => {
+    if (profilePicturePreview) {
+      URL.revokeObjectURL(profilePicturePreview);
+    }
     setProfilePicture(null);
     setProfilePicturePreview(null);
     setRemovePicture(true);
+  };
+
+  const handlePostSubmit = (e) => {
+    e.preventDefault();
+    if (!postImage) return;
+    createPostMutation.mutate({ image: postImage, caption: postCaption });
   };
 
   const avatarUrl = removePicture
@@ -121,7 +161,10 @@ export default function Profile() {
     { name: "Summit Legend", desc: "Hiked over 100km or completed 10+ expeditions.", icon: "Compass" }
   ];
 
-  const earnedAchievementNames = (userProfile.achievements || []).map(ach => ach.achievement.name);
+  const earnedAchievementNames = (userProfile.achievements || []).map(ach => ach.achievement?.name);
+  const workshopsCreated = userProfile.profile?.workshops_created_count || 0;
+  const workshopsParticipated = userProfile.profile?.workshops_participated_count || 0;
+  const posts = userProfile.posts || [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -140,7 +183,7 @@ export default function Profile() {
               />
             ) : (
               <div className="w-20 h-20 rounded-full bg-primary/10 border-2 border-primary flex items-center justify-center text-primary text-3xl font-bold shadow-lg shadow-primary/10">
-                {userProfile.username[0].toUpperCase()}
+                {userProfile.username?.[0]?.toUpperCase() || 'U'}
               </div>
             )}
             {isOwnProfile && isEditing && (
@@ -150,7 +193,7 @@ export default function Profile() {
               </label>
             )}
           </div>
-          
+
           <div className="text-center sm:text-left space-y-1.5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <h1 className="text-2xl font-bold text-dark-text tracking-tight">{userProfile.username}</h1>
@@ -158,14 +201,22 @@ export default function Profile() {
                 {userProfile.profile?.experience_level || 'Beginner'}
               </span>
             </div>
-            
+
             <p className="text-dark-muted text-sm max-w-md">
               {userProfile.profile?.bio || "No biography provided. Add something to introduce yourself to your fellow trekkers!"}
             </p>
 
-            <div className="flex items-center gap-6 text-xs text-dark-muted pt-2 justify-center sm:justify-start">
+            <div className="flex items-center gap-6 text-xs text-dark-muted pt-2 justify-center sm:justify-start flex-wrap">
               <div>
                 <span className="text-primary font-extrabold text-sm">{userProfile.profile?.previous_treks_completed || 0}</span> Completed
+              </div>
+              <div className="w-[1px] h-3 bg-dark-border" />
+              <div>
+                <span className="text-primary font-extrabold text-sm">{workshopsParticipated}</span> Participated
+              </div>
+              <div className="w-[1px] h-3 bg-dark-border" />
+              <div>
+                <span className="text-primary font-extrabold text-sm">{workshopsCreated}</span> Created
               </div>
               <div className="w-[1px] h-3 bg-dark-border" />
               <div>
@@ -212,7 +263,7 @@ export default function Profile() {
                   </button>
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-dark-muted mb-1.5">Biography</label>
                 <textarea
@@ -303,6 +354,69 @@ export default function Profile() {
               )}
             </div>
           )}
+
+          {/* Public Posts */}
+          <div className="glass-panel p-6 rounded-xl border border-dark-border/30 space-y-5 text-sm">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-dark-muted flex items-center gap-2">
+              <Image className="w-4 h-4 text-primary" />
+              <span>Public Posts ({posts.length})</span>
+            </h2>
+
+            {isOwnProfile && (
+              <form onSubmit={handlePostSubmit} className="grid gap-3 p-4 rounded-lg bg-dark-bg border border-dark-border/40">
+                <label className="flex items-center justify-center gap-2 min-h-28 rounded-lg border border-dashed border-dark-border/60 text-dark-muted hover:border-primary hover:text-primary cursor-pointer transition-colors">
+                  <Upload className="w-4 h-4" />
+                  <span className="text-xs font-semibold">
+                    {postImage ? postImage.name : 'Upload post image'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setPostImage(e.target.files?.[0] || null)}
+                  />
+                </label>
+                <textarea
+                  value={postCaption}
+                  onChange={(e) => setPostCaption(e.target.value)}
+                  placeholder="Add a caption..."
+                  rows="2"
+                  className="w-full p-2.5 rounded-lg glass-input text-dark-text"
+                />
+                <button
+                  type="submit"
+                  disabled={!postImage || createPostMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-extrabold rounded-lg transition duration-200 text-xs disabled:opacity-50"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {createPostMutation.isPending ? 'Posting...' : 'Post'}
+                </button>
+              </form>
+            )}
+
+            {posts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {posts.map((post) => (
+                  <article key={post.id} className="rounded-lg border border-dark-border/40 bg-dark-bg overflow-hidden">
+                    <img
+                      src={post.image_url}
+                      alt={post.caption || `${userProfile.username} profile post`}
+                      className="w-full aspect-square object-cover"
+                    />
+                    {post.caption && (
+                      <p className="p-3 text-sm text-dark-text leading-relaxed">
+                        {post.caption}
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="p-5 rounded-lg border border-dark-border/40 bg-dark-bg text-dark-muted text-sm">
+                No public posts yet.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Achievements Gamification Grid */}
@@ -320,14 +434,14 @@ export default function Profile() {
                   <div
                     key={ach.name}
                     className={`p-4 rounded-xl border flex gap-3.5 transition duration-300 relative ${
-                      isEarned 
-                        ? 'border-primary/20 bg-primary/5 text-dark-text shadow-sm shadow-primary/5' 
+                      isEarned
+                        ? 'border-primary/20 bg-primary/5 text-dark-text shadow-sm shadow-primary/5'
                         : 'border-dark-border/30 bg-dark-card/20 text-dark-muted'
                     }`}
                   >
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center border shrink-0 ${
-                      isEarned 
-                        ? 'bg-primary/10 border-primary text-primary' 
+                      isEarned
+                        ? 'bg-primary/10 border-primary text-primary'
                         : 'bg-dark-border/20 border-dark-border/40 text-dark-muted/40'
                     }`}>
                       {isEarned ? <Sparkles className="w-6 h-6" /> : <Lock className="w-5 h-5" />}
