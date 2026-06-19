@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI } from '../api';
 
 const DIFFICULTY_STYLES = {
-  EASY:      'border-green-500/40  bg-green-500/10  text-green-400',
+  EASY:     'border-green-500/40  bg-green-500/10  text-green-400',
   MODERATE: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400',
   HARD:     'border-orange-500/40 bg-orange-500/10 text-orange-400',
   EXTREME:  'border-red-500/40    bg-red-500/10    text-red-400',
@@ -16,41 +16,46 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
+  // Search & Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('ALL');
 
+  // Modal & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newTrekTitle, setNewTrekTitle] = useState('');
   const [newTrekDesc, setNewTrekDesc] = useState('');
   const [newTrekDate, setNewTrekDate] = useState('');
-  const [newTrekCapacity, setNewTrekCapacity] = useState(10);
+  const [newTrekCapacity, setNewTrekCapacity] = useState('10');
   const [newTrekDiff, setNewTrekDiff] = useState('MODERATE');
   const [newTrekDestination, setNewTrekDestination] = useState('');
   const [newTrekImage, setNewTrekImage] = useState(null);
   const [newTrekImagePreview, setNewTrekImagePreview] = useState(null);
   const [formError, setFormError] = useState(null);
 
+  // Debounce search term entry
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  // Clean up memory leaks from object previews
   useEffect(() => {
     return () => { if (newTrekImagePreview) URL.revokeObjectURL(newTrekImagePreview); };
   }, [newTrekImagePreview]);
 
+  // Fetching Data via TanStack Query
   const { data: treks = [], isLoading, isError } = useQuery({
     queryKey: ['treks'],
     queryFn: treksAPI.list,
   });
 
+  // Mutations
   const createTrekMutation = useMutation({
     mutationFn: (formData) => treksAPI.create(formData),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['treks'] });
-      setIsModalOpen(false);
-      resetForm();
+      handleCloseModal();
       if (data?.id) navigate(`/trek/${data.id}`);
     },
     onError: (err) => {
@@ -75,15 +80,21 @@ export default function Dashboard() {
     setNewTrekTitle('');
     setNewTrekDesc('');
     setNewTrekDate('');
-    setNewTrekCapacity(10);
+    setNewTrekCapacity('10');
     setNewTrekDiff('MODERATE');
     setNewTrekDestination('');
     setNewTrekImage(null);
     if (newTrekImagePreview) URL.revokeObjectURL(newTrekImagePreview);
-    setNewTrekImagePreview(null);
+    newTrekImagePreview = null;
     setFormError(null);
   };
 
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  // Memoized or Inline Client-side filtering logic
   const filteredTreks = treks.filter(trek => {
     const q = debouncedSearchTerm.toLowerCase();
     const matchesSearch =
@@ -97,10 +108,12 @@ export default function Dashboard() {
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     setFormError(null);
+
     if (!newTrekTitle.trim() || !newTrekDesc.trim() || !newTrekDate || !newTrekCapacity) {
       setFormError('Please fill out all required fields.');
       return;
     }
+
     const formData = new FormData();
     formData.append('title', newTrekTitle.trim());
     formData.append('description', newTrekDesc.trim());
@@ -109,6 +122,7 @@ export default function Dashboard() {
     formData.append('capacity', parseInt(newTrekCapacity, 10));
     formData.append('difficulty', newTrekDiff);
     if (newTrekImage) formData.append('destination_image', newTrekImage);
+
     createTrekMutation.mutate(formData);
   };
 
@@ -125,8 +139,7 @@ export default function Dashboard() {
           `,
         }}
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5"
-          style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 0)' }} />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5" style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 0)' }} />
         <div className="absolute top-0 right-0 w-0.5 h-32 bg-primary/30" />
         <div className="absolute top-0 right-0 h-0.5 w-32 bg-primary/30" />
 
@@ -189,7 +202,7 @@ export default function Dashboard() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-[420px] bg-[#0D0D0D] border border-[#1E1E1E] animate-pulse" />
+            <div key={`skeleton-${i}`} className="h-[420px] bg-[#0D0D0D] border border-[#1E1E1E] animate-pulse" />
           ))}
         </div>
       ) : isError ? (
@@ -268,7 +281,6 @@ export default function Dashboard() {
                 </div>
 
                 <div>
-                  {/* Organizer + capacity row */}
                   <div className="border-t border-[#1A1A1A] pt-4 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-dark-muted">
                       {trek.organizer_profile_picture_url ? (
@@ -301,7 +313,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* CTA button */}
                   <div className="mt-4">
                     {trek.is_member ? (
                       <Link
@@ -351,7 +362,7 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/90"
-              onClick={() => setIsModalOpen(false)}
+              onClick={handleCloseModal}
             />
 
             <motion.div
@@ -377,7 +388,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
                   className="p-2 text-dark-muted hover:text-dark-text border border-[#1E1E1E] hover:border-[#333] transition-colors focus:outline-none shrink-0"
                   aria-label="Close modal"
                 >
@@ -395,10 +406,11 @@ export default function Dashboard() {
 
                 <form onSubmit={handleCreateSubmit} className="space-y-4 text-sm">
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <label htmlFor="trek-title" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                       Gathering Title *
                     </label>
                     <input
+                      id="trek-title"
                       type="text"
                       value={newTrekTitle}
                       onChange={(e) => setNewTrekTitle(e.target.value)}
@@ -409,10 +421,11 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <label htmlFor="trek-destination" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                       Location
                     </label>
                     <input
+                      id="trek-destination"
                       type="text"
                       value={newTrekDestination}
                       onChange={(e) => setNewTrekDestination(e.target.value)}
@@ -422,7 +435,7 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <label htmlFor="trek-image" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                       Cover Image
                     </label>
                     {newTrekImagePreview ? (
@@ -439,6 +452,7 @@ export default function Dashboard() {
                     ) : (
                       <div className="relative p-6 bg-[#0D0D0D] border border-dashed border-[#2A2A2A] hover:border-primary/40 flex flex-col items-center justify-center group transition-colors cursor-pointer">
                         <input
+                          id="trek-image"
                           type="file"
                           accept="image/*"
                           onChange={(e) => {
@@ -459,10 +473,11 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <label htmlFor="trek-desc" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                       Details *
                     </label>
                     <textarea
+                      id="trek-desc"
                       value={newTrekDesc}
                       onChange={(e) => setNewTrekDesc(e.target.value)}
                       placeholder="What is happening, what to bring, meeting point, timing..."
@@ -474,10 +489,11 @@ export default function Dashboard() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                      <label htmlFor="trek-date" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                         Date *
                       </label>
                       <input
+                        id="trek-date"
                         type="date"
                         value={newTrekDate}
                         onChange={(e) => setNewTrekDate(e.target.value)}
@@ -486,10 +502,11 @@ export default function Dashboard() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                      <label htmlFor="trek-capacity" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                         Capacity *
                       </label>
                       <input
+                        id="trek-capacity"
                         type="number"
                         value={newTrekCapacity}
                         onChange={(e) => setNewTrekCapacity(e.target.value)}
@@ -502,9 +519,9 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
                       Intensity Level
-                    </label>
+                    </span>
                     <div className="flex border border-[#1E1E1E] bg-[#0D0D0D]">
                       {['EASY', 'MODERATE', 'HARD', 'EXTREME'].map((diff) => (
                         <button
@@ -540,4 +557,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

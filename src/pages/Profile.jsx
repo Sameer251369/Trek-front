@@ -13,7 +13,7 @@ export default function Profile() {
   const loggedInUser = authAPI.getCurrentUser();
   const isOwnProfile = loggedInUser && String(loggedInUser.id) === String(id);
 
-  // Edit fields
+  // Form Edit fields
   const [isEditing, setIsEditing] = useState(false);
   const [bio, setBio] = useState('');
   const [experience, setExperience] = useState('BEGINNER');
@@ -44,7 +44,7 @@ export default function Profile() {
     }
   }, [userProfile]);
 
-  // Clean up the object URL when the preview changes or unmounts, to avoid leaking memory
+  // Comprehensive clean up on preview changes or unmounting
   useEffect(() => {
     return () => {
       if (profilePicturePreview) {
@@ -52,6 +52,20 @@ export default function Profile() {
       }
     };
   }, [profilePicturePreview]);
+
+  // Clean up when leaving edit mode explicitly
+  const toggleEditMode = () => {
+    if (isEditing) {
+      // Clear unsaved file states and object URLs
+      if (profilePicturePreview) {
+        URL.revokeObjectURL(profilePicturePreview);
+      }
+      setProfilePicture(null);
+      setProfilePicturePreview(null);
+      setRemovePicture(false);
+    }
+    setIsEditing(!isEditing);
+  };
 
   // Mutations
   const updateProfileMutation = useMutation({
@@ -65,13 +79,11 @@ export default function Profile() {
       setRemovePicture(false);
       setTimeout(() => setSaveSuccess(false), 3000);
 
-      // Update global context by refreshing cached user details
       const stored = authAPI.getCurrentUser();
       if (stored) {
         stored.profile = data.profile;
         localStorage.setItem('user', JSON.stringify(stored));
       }
-      // Let other parts of the app know the user changed
       window.dispatchEvent(new Event('userUpdated'));
     },
   });
@@ -103,8 +115,6 @@ export default function Profile() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    
-    // Construct FormData so files transmit correctly to Django REST Framework's MultiPartParser
     const formData = new FormData();
     formData.append('bio', bio);
     formData.append('experience_level', experience);
@@ -146,7 +156,6 @@ export default function Profile() {
     e.preventDefault();
     if (!postImage) return;
 
-    // Use FormData for creating public media posts
     const formData = new FormData();
     formData.append('image', postImage);
     formData.append('caption', postCaption);
@@ -172,7 +181,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Top Card */}
+      {/* Top Profile Card */}
       <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-dark-border/30 bg-gradient-to-br from-dark-card to-dark-bg flex flex-col md:flex-row gap-6 items-start justify-between relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -231,10 +240,10 @@ export default function Profile() {
 
         {isOwnProfile && (
           <button
-            onClick={() => setIsEditing(!isEditing)}
+            onClick={toggleEditMode}
             className="w-full md:w-auto py-2.5 px-5 bg-dark-border/40 hover:bg-dark-border text-dark-text font-bold rounded-lg border border-dark-border/50 transition duration-200 text-sm flex items-center justify-center gap-2 mt-4 md:mt-0 shrink-0"
           >
-            {isEditing ? <Save className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+            {isEditing ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
             <span>{isEditing ? 'Cancel Edit' : 'Edit Profile'}</span>
           </button>
         )}
@@ -421,7 +430,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Right Column: Achievements Gamification Grid */}
+        {/* Right Column: Achievements */}
         <div className="space-y-6">
           <div className="glass-panel p-6 rounded-xl border border-dark-border/30">
             <h2 className="text-sm font-bold uppercase tracking-widest text-dark-muted mb-4 flex items-center gap-2">
