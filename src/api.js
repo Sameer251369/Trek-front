@@ -124,21 +124,23 @@ export const treksAPI = {
     const response = await api.get(`/treks/${id}/`);
     return response.data;
   },
+  // FIXED: Standardized to reliably dispatch FormData multipart encoding payloads to Django
   create: async (data) => {
-    const hasFile = data.destination_image instanceof File;
-    if (hasFile) {
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          formData.append(key, value);
+    const formData = new FormData();
+    
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        // Skips text placeholders so the backend treats it cleanly as an empty media slot
+        if (key === 'destination_image' && typeof value === 'string') {
+          return; 
         }
-      });
-      const response = await api.post('/treks/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      return response.data;
-    }
-    const response = await api.post('/treks/', data);
+        formData.append(key, value);
+      }
+    });
+
+    const response = await api.post('/treks/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
   requestJoin: async (groupId) => {
@@ -214,7 +216,6 @@ export const expensesAPI = {
     return response.data;
   },
   delete: async (id) => {
-    // FIXED: Corrected mapping direction from '/equipment/' to '/expenses/'
     const response = await api.delete(`/expenses/${id}/`); 
     return response.data;
   },
@@ -253,7 +254,6 @@ export const usersAPI = {
     if (hasNestedFile || removePicture) {
       const formData = new FormData();
       
-      // FIXED: Flat mapping maps precisely to Django view partial extraction loop lookups
       if (data.profile) {
         Object.entries(data.profile).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
