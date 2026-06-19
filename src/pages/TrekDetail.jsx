@@ -146,9 +146,17 @@ export default function TrekDetail() {
             {trek.members?.map((member) => (
               <div key={member.id} className="flex items-center justify-between text-xs border-b border-dark-border/10 pb-2.5">
                 <Link to={`/profile/${member.user}`} className="flex items-center gap-2 hover:text-primary transition duration-150">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold uppercase">
-                    {member.username[0]}
-                  </div>
+                  {member.profile_picture_url ? (
+                    <img
+                      src={member.profile_picture_url}
+                      alt={member.username}
+                      className="w-6 h-6 rounded-full object-cover border border-primary/40 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold uppercase shrink-0">
+                      {member.username[0]}
+                    </div>
+                  )}
                   <div>
                     <p className="font-bold text-dark-text">{member.username}</p>
                     <p className="text-[9px] text-dark-muted uppercase font-bold">{member.experience_level}</p>

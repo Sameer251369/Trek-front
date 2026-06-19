@@ -34,7 +34,7 @@ function NavigationBar({ user, onLogout }) {
     <nav className="glass-panel sticky top-0 z-50 px-6 py-4 flex items-center justify-between border-b border-dark-border/40">
       <Link to="/" className="flex items-center gap-2 text-primary font-bold text-2xl tracking-tight">
         <Compass className="w-8 h-8 animate-pulse-slow" />
-        <span>JAWAN</span>
+        <span>WALMILO</span>
       </Link>
 
       {user ? (
