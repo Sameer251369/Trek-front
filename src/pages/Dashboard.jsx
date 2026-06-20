@@ -181,7 +181,7 @@ export default function Dashboard() {
           </div>
           <input
             type="text"
-            placeholder="SEARCH GATHERINGS..."
+            placeholder="SEARCH GATHERINGS AND LOCATIONS"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pr-4 py-2.5 bg-transparent text-dark-text text-[11px] tracking-[0.1em] uppercase placeholder:text-[#333] focus:outline-none"
