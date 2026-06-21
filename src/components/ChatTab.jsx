@@ -113,6 +113,17 @@ export default function ChatTab({ trekId, members }) {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Mark this trek's chat as "seen" whenever messages are viewed here.
+  // The floating "Manage Expeditions" dock (App.jsx) reads this timestamp
+  // to compute unread message badges per expedition.
+  useEffect(() => {
+    try {
+      localStorage.setItem(`trekkar_chat_last_seen_${trekId}`, new Date().toISOString());
+    } catch (e) {
+      // localStorage unavailable (e.g. private browsing) - safe to ignore
+    }
+  }, [messages, trekId]);
+
   // HTTP fallback mutation for sending message
   const sendMessageMutation = useMutation({
     mutationFn: ({ content, type, extra }) => chatAPI.sendMessage(trekId, content, type, extra),

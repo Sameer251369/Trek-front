@@ -1,8 +1,8 @@
 import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery, useQueries } from '@tanstack/react-query';
 import { Compass, User, LogOut, Settings, ArrowRight, ChevronUp, Calendar } from 'lucide-react';
-import { authAPI, treksAPI } from './api';
+import { authAPI, treksAPI, chatAPI } from './api';
 
 const Auth = lazy(() => import('./pages/Auth'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -106,6 +106,27 @@ function NavigationBar({ user, onLogout }) {
   );
 }
 
+// Reads the per-trek "last seen" timestamp set by ChatTab when the user
+// actually views that expedition's chat.
+function getChatLastSeen(trekId) {
+  try {
+    return localStorage.getItem(`trekkar_chat_last_seen_${trekId}`);
+  } catch (e) {
+    return null;
+  }
+}
+
+function UnreadBadge({ count, className = '' }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span
+      className={`flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black leading-none shrink-0 ${className}`}
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+}
+
 function OrganizerFloatingDock({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const dockRef = useRef(null);
@@ -114,6 +135,22 @@ function OrganizerFloatingDock({ user }) {
     queryKey: ['organizer-floating-treks'],
     queryFn: treksAPI.list,
     enabled: !!user,
+  });
+
+  const organized = treks
+    .filter((item) => item.organizer === user?.id)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  // Poll each organized expedition's chat so we can compute unread counts.
+  // This stays lightweight since it's only the organizer's own expeditions.
+  const unreadQueries = useQueries({
+    queries: organized.map((trek) => ({
+      queryKey: ['dock-chat-unread', trek.id],
+      queryFn: () => chatAPI.listMessages(trek.id),
+      enabled: !!user,
+      refetchInterval: 20000,
+      staleTime: 10000,
+    })),
   });
 
   // Close dropdown on outside click
@@ -128,14 +165,23 @@ function OrganizerFloatingDock({ user }) {
   }, []);
 
   if (!user) return null;
-
-  const organized = treks
-    .filter((item) => item.organizer === user.id)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-
   if (organized.length === 0) return null;
 
   const nextTrek = organized.find((item) => new Date(item.date) >= new Date()) || organized[0];
+
+  // Map of trekId -> unread count (messages newer than last-seen, excluding own messages)
+  const unreadByTrek = {};
+  organized.forEach((trek, idx) => {
+    const msgs = unreadQueries[idx]?.data || [];
+    const lastSeen = getChatLastSeen(trek.id);
+    const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
+    unreadByTrek[trek.id] = msgs.filter((m) => {
+      const isOwnMessage = user && String(m.sender) === String(user.id);
+      return !isOwnMessage && new Date(m.created_at).getTime() > lastSeenTime;
+    }).length;
+  });
+
+  const totalUnread = Object.values(unreadByTrek).reduce((sum, n) => sum + n, 0);
 
   return (
     <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
@@ -144,34 +190,43 @@ function OrganizerFloatingDock({ user }) {
           <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/95 sticky top-0">
             Your Expeditions ({organized.length})
           </div>
-          {organized.map((trek) => (
-            <Link
-              key={trek.id}
-              to={`/trek/${trek.id}`}
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition duration-150 no-underline group"
-            >
-              <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-dark-bg transition duration-150">
-                <Settings className="w-3.5 h-3.5" />
-              </span>
-              <span className="flex-1 min-w-0 text-left">
-                <span className="block text-sm font-bold text-dark-text group-hover:text-primary transition duration-150 truncate">
-                  {trek.title}
+          {organized.map((trek) => {
+            const unreadCount = unreadByTrek[trek.id] || 0;
+            return (
+              <Link
+                key={trek.id}
+                to={`/trek/${trek.id}`}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition duration-150 no-underline group"
+              >
+                <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-dark-bg transition duration-150">
+                  <Settings className="w-3.5 h-3.5" />
                 </span>
-                <span className="flex items-center gap-1 text-[10px] text-dark-muted truncate">
-                  <Calendar className="w-3 h-3 shrink-0" />
-                  {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                <span className="flex-1 min-w-0 text-left">
+                  <span className="block text-sm font-bold text-dark-text group-hover:text-primary transition duration-150 truncate">
+                    {trek.title}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] text-dark-muted truncate">
+                    <Calendar className="w-3 h-3 shrink-0" />
+                    {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {unreadCount > 0 && (
+                      <span className="text-primary font-bold ml-1">
+                        • {unreadCount} new message{unreadCount > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </span>
                 </span>
-              </span>
-              <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary transition duration-150" />
-            </Link>
-          ))}
+                <UnreadBadge count={unreadCount} />
+                <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary transition duration-150" />
+              </Link>
+            );
+          })}
         </div>
       )}
 
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] focus:outline-none"
+        className="relative flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] focus:outline-none"
         title="Manage Expeditions"
         aria-label="Manage Expeditions"
         aria-expanded={isOpen}
@@ -192,6 +247,10 @@ function OrganizerFloatingDock({ user }) {
         ) : (
           <ArrowRight className="w-4 h-4 shrink-0" />
         )}
+        <UnreadBadge
+          count={totalUnread}
+          className="absolute -top-1.5 -right-1.5 border-2 border-dark-bg"
+        />
       </button>
     </div>
   );
