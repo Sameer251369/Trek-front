@@ -1,9 +1,23 @@
+
 import React, { useState,useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  MessageSquare, Map, Briefcase, DollarSign, ShieldAlert, 
-  Users, Calendar, Compass, UserCheck, Check, X, AlertCircle, Eye
+import { Send } from 'lucide-react';
+import {
+  MessageSquare,
+  Map,
+  Briefcase,
+  DollarSign,
+  ShieldAlert,
+  Users,
+  Calendar,
+  Compass,
+  UserCheck,
+  Check,
+  X,
+  AlertCircle,
+  Eye,
+  Send
 } from 'lucide-react';
 import { treksAPI, authAPI } from '../api';
 import ChatTab from '../components/ChatTab';
@@ -23,18 +37,12 @@ export default function TrekDetail() {
     queryKey: ['trek', id],
     queryFn: () => treksAPI.get(id),
   });
-  useEffect(() => {
-  if (trek) {
-    console.log('TREK DATA', {
-      is_member: trek.is_member,
-      join_request_status: trek.join_request_status,
-      organizer: trek.organizer,
-      currentUser: currentUser?.id,
-    });
-  }
-}, [trek, currentUser]);
+
 
   const isOrganizer = trek && currentUser && trek.organizer === currentUser.id;
+  const hasAccess =
+  trek?.is_member ||
+  isOrganizer;
 
   // Retrieve join requests if current user is organizer
   const { data: joinRequests = [] } = useQuery({
@@ -54,6 +62,25 @@ export default function TrekDetail() {
       alert(err.response?.data?.[0] || 'Action failed.');
     }
   });
+const joinRequestMutation = useMutation({
+  mutationFn: () => treksAPI.requestJoin(id),
+
+  onSuccess: () => {
+    queryClient.invalidateQueries({
+      queryKey: ['trek', id],
+    });
+  },
+
+  onError: (err) => {
+    alert(
+      err?.response?.data?.detail ||
+      err?.response?.data?.non_field_errors?.[0] ||
+      'Failed to send join request.'
+    );
+  },
+});
+
+
 
   if (isLoading) {
     return (
@@ -70,6 +97,73 @@ export default function TrekDetail() {
       </div>
     );
   }
+  if (trek && !hasAccess) {
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="glass-panel p-6 rounded-xl border border-dark-border/30">
+
+        <div className="space-y-4">
+          <div>
+            <span className="text-[10px] font-bold px-2 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase">
+              {trek.difficulty}
+            </span>
+
+            <h1 className="text-3xl font-bold mt-3">
+              {trek.title}
+            </h1>
+
+            <p className="text-dark-muted mt-2">
+              {trek.description}
+            </p>
+          </div>
+
+          <div className="border-t border-dark-border/30 pt-4 space-y-2">
+            <p>
+              <strong>Organizer:</strong> {trek.organizer_username}
+            </p>
+
+            <p>
+              <strong>Date:</strong>{' '}
+              {new Date(trek.date).toLocaleDateString()}
+            </p>
+
+            <p>
+              <strong>Members:</strong>{' '}
+              {trek.members_count} / {trek.capacity}
+            </p>
+          </div>
+
+          {trek.join_request_status === 'PENDING' ? (
+            <button
+              disabled
+              className="w-full py-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 font-semibold"
+            >
+              Request Pending
+            </button>
+          ) : trek.join_request_status === 'REJECTED' ? (
+            <button
+              disabled
+              className="w-full py-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 font-semibold"
+            >
+              Request Rejected
+            </button>
+          ) : (
+            <button
+              onClick={() => joinRequestMutation.mutate()}
+              disabled={joinRequestMutation.isPending}
+              className="w-full py-3 rounded-lg bg-primary text-dark-bg font-bold flex items-center justify-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              {joinRequestMutation.isPending
+                ? 'Sending Request...'
+                : 'Request To Join'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
   const pendingRequests = joinRequests.filter(req => req.status === 'PENDING');
 
