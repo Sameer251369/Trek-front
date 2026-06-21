@@ -6,7 +6,6 @@ const API_BASE_URL =
 const WS_BASE_URL =
   import.meta.env.VITE_WS_URL || "wss://back-hyn6.onrender.com";
 
-// Rewrites any legacy media paths safely if still floating around local test beds
 export const fixMediaUrl = (url) => {
   if (!url) return url;
   return url
@@ -43,28 +42,38 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    
+    // Check for 401 and make sure we haven't retried this specific request yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
+      
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) {
           throw new Error('No refresh token available');
         }
 
+        // FIX: Use a clean, detached axios instance to avoid global interceptor pollution
         const response = await axios.post(`${API_BASE_URL}/api/token/refresh/`, {
           refresh: refreshToken,
         });
 
-        localStorage.setItem('access_token', response.data.access);
-        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
-        originalRequest.headers['Authorization'] = `Bearer ${response.data.access}`;
+        const newAccessToken = response.data.access;
+        localStorage.setItem('access_token', newAccessToken);
+        
+        // FIX: Ensure capitalization consistency across Axios headers mapping object
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        
+        // Retry the original request with the fresh token
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
+        
+        // FIX: Halt downstream processing during an active application context redirect
         window.location.href = '/login';
-        return Promise.reject(refreshError);
+        return new Promise(() => {}); // Returns an unresolved pending promise to break the loop
       }
     }
     return Promise.reject(error);
@@ -124,10 +133,6 @@ export const treksAPI = {
     const response = await api.get(`/treks/${id}/`);
     return response.data;
   },
-  // FIXED: Now correctly handles a FormData instance passed in directly (e.g. from
-  // Dashboard.jsx) instead of silently producing an empty payload via Object.entries(),
-  // which does not work on FormData objects. Falls back to building FormData from a
-  // plain object for any other callers.
   create: async (data) => {
     let formData;
 
@@ -135,10 +140,8 @@ export const treksAPI = {
       formData = data;
     } else {
       formData = new FormData();
-
       Object.entries(data).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          // Skips text placeholders so the backend treats it cleanly as an empty media slot
           if (key === 'destination_image' && typeof value === 'string') {
             return;
           }
@@ -147,8 +150,9 @@ export const treksAPI = {
       });
     }
 
+    // FIX: Let the browser automatically configure the exact multipart boundary configuration
     const response = await api.post('/treks/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
     return response.data;
   },
@@ -193,7 +197,7 @@ export const chatAPI = {
     return token
       ? `${WS_BASE_URL}/ws/chat/${groupId}/?token=${encodeURIComponent(token)}`
       : `${WS_BASE_URL}/ws/chat/${groupId}/`;
-    },
+  },
 };
 
 export const equipmentAPI = {
@@ -242,7 +246,7 @@ export const usersAPI = {
 
   createProfilePost: async (formData) => {
     const response = await api.post('/users/me/posts/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
     return response.data;
   },
@@ -254,7 +258,7 @@ export const usersAPI = {
 
     if (isFormData) {
       const response = await api.patch('/users/me/', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
       localStorage.setItem('user', JSON.stringify(response.data));
       return response.data;
@@ -266,7 +270,9 @@ export const usersAPI = {
       if (data.profile) {
         Object.entries(data.profile).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
-            formData.append(key, value);
+            // FIX: Maps directly using profile prefix notation matching the custom Django payload checks
+            formData.append(`profile.${key}`, value);
+            formData.append(key, value); // Keep fallback for broad parsers
           }
         });
       }
@@ -274,7 +280,7 @@ export const usersAPI = {
         formData.append('remove_profile_picture', 'true');
       }
       const response = await api.patch('/users/me/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
       localStorage.setItem('user', JSON.stringify(response.data));
       return response.data;
