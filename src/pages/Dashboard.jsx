@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   Calendar, Users, Search, AlertTriangle, Plus, X, 
-  ArrowRight, User, Upload, Network, Edit2, Trash2, Share2, Check 
+  ArrowRight, User, Upload, Network, Edit2, Trash2, Share2, Check, MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI } from '../api';
@@ -12,7 +12,7 @@ const DIFFICULTY_STYLES = {
   EASY:     'border-green-500/40  bg-green-500/10  text-green-400',
   MODERATE: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400',
   HARD:     'border-orange-500/40 bg-orange-500/10 text-orange-400',
-  EXTREME:  'border-red-500/40    bg-red-500/10    text-red-400',
+  EXTREME:  'border-red-500/40     bg-red-500/10     text-red-400',
 };
 
 export default function Dashboard() {
@@ -26,7 +26,7 @@ export default function Dashboard() {
 
   // Modal, Mode, & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTrekId, setEditingTrekId] = useState(null); // null = Create Mode, id = Edit Mode
+  const [editingTrekId, setEditingTrekId] = useState(null); 
   const [newTrekTitle, setNewTrekTitle] = useState('');
   const [newTrekDesc, setNewTrekDesc] = useState('');
   const [newTrekDate, setNewTrekDate] = useState('');
@@ -36,6 +36,10 @@ export default function Dashboard() {
   const [newTrekImage, setNewTrekImage] = useState(null);
   const [newTrekImagePreview, setNewTrekImagePreview] = useState(null);
   const [formError, setFormError] = useState(null);
+
+  // UI Dropdown Menu Management State
+  const [activeMenuTrekId, setActiveMenuTrekId] = useState(null);
+  const menuRef = useRef(null);
 
   // Clipboard Share Feedback State
   const [copiedTrekId, setCopiedTrekId] = useState(null);
@@ -50,6 +54,17 @@ export default function Dashboard() {
   useEffect(() => {
     return () => { if (newTrekImagePreview) URL.revokeObjectURL(newTrekImagePreview); };
   }, [newTrekImagePreview]);
+
+  // Global Outside Click Handler to Auto-Close Action Menus
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setActiveMenuTrekId(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetching Data via TanStack Query
   const { data: treks = [], isLoading, isError } = useQuery({
@@ -76,7 +91,7 @@ export default function Dashboard() {
   });
 
   const updateTrekMutation = useMutation({
-    mutationFn: ({ id, formData }) => treksAPI.update(id, formData), // Assumes treksAPI.update(id, data) exists
+    mutationFn: ({ id, formData }) => treksAPI.update(id, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['treks'] });
       handleCloseModal();
@@ -87,7 +102,7 @@ export default function Dashboard() {
   });
 
   const deleteTrekMutation = useMutation({
-    mutationFn: (id) => treksAPI.delete(id), // Assumes treksAPI.delete(id) exists
+    mutationFn: (id) => treksAPI.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['treks'] });
     },
@@ -126,7 +141,6 @@ export default function Dashboard() {
     resetForm();
   };
 
-  // Populate form values for editing
   const handleOpenEditModal = (trek) => {
     setEditingTrekId(trek.id);
     setNewTrekTitle(trek.title || '');
@@ -139,9 +153,11 @@ export default function Dashboard() {
       setNewTrekImagePreview(trek.destination_image_url);
     }
     setIsModalOpen(true);
+    setActiveMenuTrekId(null);
   };
 
   const handleDeleteTrek = (id) => {
+    setActiveMenuTrekId(null);
     if (window.confirm('Are you absolutely sure you want to delete this gathering? This action cannot be undone.')) {
       deleteTrekMutation.mutate(id);
     }
@@ -156,10 +172,17 @@ export default function Dashboard() {
     document.body.removeChild(el);
 
     setCopiedTrekId(id);
-    setTimeout(() => setCopiedTrekId(null), 2000);
+    setTimeout(() => {
+      setCopiedTrekId(null);
+      setActiveMenuTrekId(null);
+    }, 1800);
   };
 
-  // Client-side filtering logic
+  const toggleMenu = (e, id) => {
+    e.stopPropagation();
+    setActiveMenuTrekId(activeMenuTrekId === id ? null : id);
+  };
+
   const filteredTreks = treks.filter(trek => {
     const q = debouncedSearchTerm.toLowerCase();
     const matchesSearch =
@@ -170,7 +193,6 @@ export default function Dashboard() {
     return matchesSearch && matchesDiff;
   });
 
-  // Consolidated Form submission handler logic
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     setFormError(null);
@@ -304,42 +326,55 @@ export default function Dashboard() {
             >
               <div className="h-[2px] bg-primary w-8" />
 
-              {/* Card Context Actions Overlay */}
-              <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              {/* 3-Dot Responsive Config Menu Layer */}
+              <div className="absolute top-3 right-3 z-30" ref={activeMenuTrekId === trek.id ? menuRef : null}>
                 <button
-                  onClick={() => handleShareLink(trek.id)}
-                  title="Copy Link"
-                  className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-primary/50 text-dark-muted hover:text-primary transition-colors focus:outline-none text-[9px] font-bold tracking-wider flex items-center gap-1"
+                  onClick={(e) => toggleMenu(e, trek.id)}
+                  className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-primary/50 text-dark-text transition-colors focus:outline-none"
+                  title="Actions Menu"
                 >
-                  {copiedTrekId === trek.id ? (
-                    <>
-                      <Check className="w-3 h-3 text-green-400" />
-                      <span className="text-green-400 font-mono text-[8px] uppercase">Copied!</span>
-                    </>
-                  ) : (
-                    <Share2 className="w-3 h-3" />
-                  )}
+                  <MoreVertical className="w-4 h-4" />
                 </button>
 
-                {/* Only render configuration settings if user owns the asset */}
-                {(trek.is_organizer || trek.is_owner) && (
-                  <>
-                    <button
-                      onClick={() => handleOpenEditModal(trek)}
-                      title="Edit Gathering"
-                      className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-yellow-500/50 text-dark-muted hover:text-yellow-400 transition-colors focus:outline-none"
+                <AnimatePresence>
+                  {activeMenuTrekId === trek.id && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                      transition={{ duration: 0.12 }}
+                      className="absolute right-0 mt-1 w-40 bg-[#0D0D0D] border border-[#1E1E1E] shadow-xl flex flex-col z-40"
                     >
-                      <Edit2 className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTrek(trek.id)}
-                      title="Delete Gathering"
-                      className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-red-500/50 text-dark-muted hover:text-red-400 transition-colors focus:outline-none"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </>
-                )}
+                      <button
+                        onClick={() => handleShareLink(trek.id)}
+                        className="w-full text-left px-3 py-2 text-[10px] uppercase font-bold tracking-wider text-dark-muted hover:text-primary hover:bg-[#141414] transition-colors flex items-center justify-between border-b border-[#1E1E1E]"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Share2 className="w-3 h-3" /> Share Gathering
+                        </span>
+                        {copiedTrekId === trek.id && <Check className="w-3 h-3 text-green-400" />}
+                      </button>
+
+                      {/* Organizer Settings Access Gate */}
+                      {(trek.is_organizer || trek.is_owner) && (
+                        <>
+                          <button
+                            onClick={() => handleOpenEditModal(trek)}
+                            className="w-full text-left px-3 py-2 text-[10px] uppercase font-bold tracking-wider text-dark-muted hover:text-yellow-400 hover:bg-[#141414] transition-colors flex items-center gap-2 border-b border-[#1E1E1E]"
+                          >
+                            <Edit2 className="w-3 h-3" /> Edit Settings
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTrek(trek.id)}
+                            className="w-full text-left px-3 py-2 text-[10px] uppercase font-bold tracking-wider text-red-500 hover:text-red-400 hover:bg-[#141414]/30 transition-colors flex items-center gap-2"
+                          >
+                            <Trash2 className="w-3 h-3" /> Delete Link
+                          </button>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {trek.destination_image_url ? (
@@ -425,7 +460,8 @@ export default function Dashboard() {
                   </div>
 
                   <div className="mt-4">
-                    {trek.is_member ? (
+                    {/* Security check: direct access link protection router gate configuration */}
+                    {trek.is_member && trek.join_request_status !== 'PENDING' ? (
                       <Link
                         to={`/trek/${trek.id}`}
                         className="w-full flex items-center justify-center gap-2 py-2.5 bg-transparent border border-primary text-primary hover:bg-primary hover:text-dark-bg font-black text-[10px] uppercase tracking-[0.18em] transition-colors duration-150 focus:outline-none no-underline"
@@ -436,8 +472,9 @@ export default function Dashboard() {
                     ) : trek.join_request_status === 'PENDING' ? (
                       <button
                         disabled
-                        className="w-full py-2.5 bg-transparent border border-[#222] text-[#444] font-black text-[10px] uppercase tracking-[0.18em] cursor-not-allowed"
+                        className="w-full py-2.5 bg-transparent border border-[#222] text-[#444] font-black text-[10px] uppercase tracking-[0.18em] cursor-not-allowed flex items-center justify-center gap-2"
                       >
+                        <span className="inline-block w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
                         Pending Approval
                       </button>
                     ) : trek.join_request_status === 'REJECTED' ? (
