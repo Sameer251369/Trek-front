@@ -3,6 +3,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, MapPin, Paperclip, AlertCircle, Info, Sparkles } from 'lucide-react';
 import { chatAPI, authAPI } from '../api';
 
+// Merge incoming messages into existing state by id instead of replacing the
+// array outright. This is critical: if the backend paginates listMessages
+// (e.g. only returns the most recent page), a hard `setMessages(fresh)` would
+// silently drop every older message that isn't in that page. Merging by id
+// guarantees messages only ever accumulate, never vanish, while still picking
+// up edits (e.g. profile updates) on existing ids.
+function mergeMessages(prev, incoming) {
+  if (!incoming || incoming.length === 0) return prev;
+  const map = new Map();
+  prev.forEach((m) => map.set(m.id, m));
+  incoming.forEach((m) => map.set(m.id, m));
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.created_at) - new Date(b.created_at)
+  );
+}
+
 export default function ChatTab({ trekId, members }) {
   const queryClient = useQueryClient();
   const currentUser = authAPI.getCurrentUser();
@@ -24,7 +40,7 @@ export default function ChatTab({ trekId, members }) {
 
   useEffect(() => {
     if (initialMessages.length > 0) {
-      setMessages(initialMessages);
+      setMessages(prev => mergeMessages(prev, initialMessages));
     }
   }, [initialMessages]);
 
@@ -78,7 +94,7 @@ export default function ChatTab({ trekId, members }) {
         pollInterval = setInterval(async () => {
           try {
             const fresh = await chatAPI.listMessages(trekId);
-            setMessages(fresh);
+            setMessages(prev => mergeMessages(prev, fresh));
           } catch (err) {
             console.error("Polling chat failed:", err);
           }
@@ -95,7 +111,7 @@ export default function ChatTab({ trekId, members }) {
       pollInterval = setInterval(async () => {
         try {
           const fresh = await chatAPI.listMessages(trekId);
-          setMessages(fresh);
+          setMessages(prev => mergeMessages(prev, fresh));
         } catch (err) {
           console.error("Polling chat failed:", err);
         }
