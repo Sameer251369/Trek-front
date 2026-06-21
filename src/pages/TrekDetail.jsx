@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   MessageSquare, Map, Briefcase, DollarSign, ShieldAlert, 
-  Users, Calendar, Compass, UserCheck, Check, X, AlertCircle
+  Users, Calendar, Compass, UserCheck, Check, X, AlertCircle, Eye
 } from 'lucide-react';
 import { treksAPI, authAPI } from '../api';
 import ChatTab from '../components/ChatTab';
@@ -113,9 +113,22 @@ export default function TrekDetail() {
             <div className="space-y-3">
               {pendingRequests.map((req) => (
                 <div key={req.id} className="p-3 rounded-lg bg-dark-bg/60 border border-dark-border text-xs flex flex-col gap-2.5">
-                  <div>
-                    <p className="font-bold text-dark-text">{req.username}</p>
-                    <p className="text-[10px] text-dark-muted uppercase font-semibold">XP: {req.experience_level} • Rating: {req.rating}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <Link
+                      to={`/profile/${req.user}`}
+                      className="flex items-center gap-1.5 group"
+                      title="View profile"
+                    >
+                      <div>
+                        <p className="font-bold text-dark-text group-hover:text-primary transition duration-150">
+                          {req.username}
+                        </p>
+                        <p className="text-[10px] text-dark-muted uppercase font-semibold">
+                          XP: {req.experience_level} • Rating: {req.rating}
+                        </p>
+                      </div>
+                      <Eye className="w-3.5 h-3.5 text-dark-muted group-hover:text-primary transition duration-150 shrink-0" />
+                    </Link>
                   </div>
                   
                   <div className="flex gap-2">
