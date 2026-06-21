@@ -77,15 +77,15 @@ export default function Auth({ isLogin, onAuthSuccess }) {
         </AnimatePresence>
       </div>
 
-      {/* Semi-transparent dark overlay to protect text legibility and blend contrast edges */}
-      <div className="absolute inset-0 bg-dark-bg/60 backdrop-blur-[2px] pointer-events-none" />
+      {/* Very light overlay, just enough to keep text legible without muddying the photo */}
+      <div className="absolute inset-0 bg-dark-bg/25 pointer-events-none" />
 
       {/* Main Authentication Card */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md p-6 sm:p-8 glass-panel rounded-2xl shadow-2xl relative overflow-hidden my-auto z-15 border border-dark-border/40 bg-dark-card/75 backdrop-blur-md"
+        className="w-full max-w-md p-6 sm:p-8 glass-panel rounded-2xl shadow-2xl relative overflow-hidden my-auto z-15 border border-white/15 bg-white/5 backdrop-blur-xl"
       >
         {/* Accent Glow Line */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent" />
@@ -124,7 +124,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-dark-bg/40"
+                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-white/5 border border-white/10"
                 placeholder="yourname123"
               />
             </div>
@@ -142,7 +142,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-dark-bg/40"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-white/5 border border-white/10"
                   placeholder="name@domain.com"
                 />
               </div>
@@ -160,7 +160,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-dark-bg/40"
+                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-white/5 border border-white/10"
                 placeholder="••••••••"
               />
             </div>
