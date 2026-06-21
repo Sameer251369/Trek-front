@@ -7,10 +7,10 @@ import { authAPI } from '../api';
 // Background images cycled behind the auth form.
 // These live in /frontend/public, so they're referenced from the site root.
 const BACKGROUND_IMAGES = [
-  '/aleksandr-popov-9vDdkxSCAD4-unsplash (2).jpg',
-  '/maico-amorim-SJWPKMb9u-k-unsplash.jpg',
-  '/nikolas-gannon-GFbn7t7V68c-unsplash.jpg',
-  '/toomas-tartes-Yizrl9N_eDA-unsplash.jpg',
+  '/rostislav-uzunov-Jnma4hh2vUs-unsplash.jpg',
+  '/shubham-dhage-2UlycB5oNEs-unsplash.jpg',
+  '/logan-voss-hT0nO6d2QVE-unsplash.jpg',
+  '/akif-waseem-mnSH1Tfd-Yc-unsplash.jpg',
 ];
 
 const SLIDE_DURATION_MS = 6000; // time each image stays on screen
