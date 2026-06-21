@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { Calendar, Users, Search, AlertTriangle, Plus, X, ArrowRight, User, Upload, Network } from 'lucide-react';
+import { 
+  Calendar, Users, Search, AlertTriangle, Plus, X, 
+  ArrowRight, User, Upload, Network, Edit2, Trash2, Share2, Check 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI } from '../api';
 
@@ -21,8 +24,9 @@ export default function Dashboard() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('ALL');
 
-  // Modal & Form State
+  // Modal, Mode, & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTrekId, setEditingTrekId] = useState(null); // null = Create Mode, id = Edit Mode
   const [newTrekTitle, setNewTrekTitle] = useState('');
   const [newTrekDesc, setNewTrekDesc] = useState('');
   const [newTrekDate, setNewTrekDate] = useState('');
@@ -32,6 +36,9 @@ export default function Dashboard() {
   const [newTrekImage, setNewTrekImage] = useState(null);
   const [newTrekImagePreview, setNewTrekImagePreview] = useState(null);
   const [formError, setFormError] = useState(null);
+
+  // Clipboard Share Feedback State
+  const [copiedTrekId, setCopiedTrekId] = useState(null);
 
   // Debounce search term entry
   useEffect(() => {
@@ -68,6 +75,27 @@ export default function Dashboard() {
     },
   });
 
+  const updateTrekMutation = useMutation({
+    mutationFn: ({ id, formData }) => treksAPI.update(id, formData), // Assumes treksAPI.update(id, data) exists
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['treks'] });
+      handleCloseModal();
+    },
+    onError: (err) => {
+      setFormError(err.response?.data?.detail || 'Failed to update gathering.');
+    },
+  });
+
+  const deleteTrekMutation = useMutation({
+    mutationFn: (id) => treksAPI.delete(id), // Assumes treksAPI.delete(id) exists
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['treks'] });
+    },
+    onError: (err) => {
+      alert(err.response?.data?.detail || 'Failed to delete gathering.');
+    },
+  });
+
   const joinRequestMutation = useMutation({
     mutationFn: treksAPI.requestJoin,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['treks'] }); },
@@ -77,6 +105,7 @@ export default function Dashboard() {
   });
 
   const resetForm = () => {
+    setEditingTrekId(null);
     setNewTrekTitle('');
     setNewTrekDesc('');
     setNewTrekDate('');
@@ -97,6 +126,39 @@ export default function Dashboard() {
     resetForm();
   };
 
+  // Populate form values for editing
+  const handleOpenEditModal = (trek) => {
+    setEditingTrekId(trek.id);
+    setNewTrekTitle(trek.title || '');
+    setNewTrekDesc(trek.description || '');
+    setNewTrekDestination(trek.destination || '');
+    setNewTrekDate(trek.date ? trek.date.split('T')[0] : '');
+    setNewTrekCapacity(String(trek.capacity || 10));
+    setNewTrekDiff(trek.difficulty || 'MODERATE');
+    if (trek.destination_image_url) {
+      setNewTrekImagePreview(trek.destination_image_url);
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteTrek = (id) => {
+    if (window.confirm('Are you absolutely sure you want to delete this gathering? This action cannot be undone.')) {
+      deleteTrekMutation.mutate(id);
+    }
+  };
+
+  const handleShareLink = (id) => {
+    const el = document.createElement('input');
+    el.value = `${window.location.origin}/trek/${id}`;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+
+    setCopiedTrekId(id);
+    setTimeout(() => setCopiedTrekId(null), 2000);
+  };
+
   // Client-side filtering logic
   const filteredTreks = treks.filter(trek => {
     const q = debouncedSearchTerm.toLowerCase();
@@ -108,7 +170,7 @@ export default function Dashboard() {
     return matchesSearch && matchesDiff;
   });
 
-  // FIXED: Structured payload pipeline into the React Query Mutation
+  // Consolidated Form submission handler logic
   const handleCreateSubmit = (e) => {
     e.preventDefault();
     setFormError(null);
@@ -130,7 +192,11 @@ export default function Dashboard() {
       formData.append('destination_image', newTrekImage);
     }
 
-    createTrekMutation.mutate(formData);
+    if (editingTrekId) {
+      updateTrekMutation.mutate({ id: editingTrekId, formData });
+    } else {
+      createTrekMutation.mutate(formData);
+    }
   };
 
   return (
@@ -165,7 +231,7 @@ export default function Dashboard() {
         </div>
 
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => { resetForm(); setIsModalOpen(true); }}
           className="relative z-10 shrink-0 flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-dark-bg font-black px-7 py-4 text-[11px] uppercase tracking-[0.2em] transition-colors duration-150 active:scale-[0.98] focus:outline-none"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
@@ -238,8 +304,46 @@ export default function Dashboard() {
             >
               <div className="h-[2px] bg-primary w-8" />
 
+              {/* Card Context Actions Overlay */}
+              <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  onClick={() => handleShareLink(trek.id)}
+                  title="Copy Link"
+                  className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-primary/50 text-dark-muted hover:text-primary transition-colors focus:outline-none text-[9px] font-bold tracking-wider flex items-center gap-1"
+                >
+                  {copiedTrekId === trek.id ? (
+                    <>
+                      <Check className="w-3 h-3 text-green-400" />
+                      <span className="text-green-400 font-mono text-[8px] uppercase">Copied!</span>
+                    </>
+                  ) : (
+                    <Share2 className="w-3 h-3" />
+                  )}
+                </button>
+
+                {/* Only render configuration settings if user owns the asset */}
+                {(trek.is_organizer || trek.is_owner) && (
+                  <>
+                    <button
+                      onClick={() => handleOpenEditModal(trek)}
+                      title="Edit Gathering"
+                      className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-yellow-500/50 text-dark-muted hover:text-yellow-400 transition-colors focus:outline-none"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTrek(trek.id)}
+                      title="Delete Gathering"
+                      className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-red-500/50 text-dark-muted hover:text-red-400 transition-colors focus:outline-none"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </>
+                )}
+              </div>
+
               {trek.destination_image_url ? (
-                <div className="h-44 w-full overflow-hidden border-b border-[#1E1E1E]">
+                <div className="h-44 w-full overflow-hidden border-b border-[#1E1E1E] relative">
                   <img
                     src={trek.destination_image_url}
                     alt={trek.destination || trek.title}
@@ -248,7 +352,7 @@ export default function Dashboard() {
                   />
                 </div>
               ) : (
-                <div className="h-44 w-full bg-[#0D0D0D] border-b border-[#1E1E1E] flex items-center justify-center"
+                <div className="h-44 w-full bg-[#0D0D0D] border-b border-[#1E1E1E] flex items-center justify-center relative"
                   style={{
                     backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(232,255,0,0.02) 8px, rgba(232,255,0,0.02) 9px)',
                   }}
@@ -360,7 +464,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Create Expedition Modal ── */}
+      {/* ── Create / Edit Gathering Modal ── */}
       <AnimatePresence>
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -387,7 +491,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-0.5 h-4 bg-primary shrink-0" />
                     <h2 className="text-[11px] font-black text-dark-text tracking-[0.2em] uppercase">
-                      Create New Gathering
+                      {editingTrekId ? 'Update Gathering Config' : 'Create New Gathering'}
                     </h2>
                   </div>
                   <p className="text-[11px] text-dark-muted tracking-wide pl-2.5">
@@ -549,11 +653,20 @@ export default function Dashboard() {
 
                   <button
                     type="submit"
-                    disabled={createTrekMutation.isPending}
+                    disabled={createTrekMutation.isPending || updateTrekMutation.isPending}
                     className="w-full py-4 bg-primary hover:bg-primary-hover text-dark-bg font-black text-[11px] uppercase tracking-[0.2em] transition-colors duration-150 mt-2 flex items-center justify-center gap-2 focus:outline-none disabled:opacity-50"
                   >
-                    <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    {createTrekMutation.isPending ? 'Publishing...' : 'Publish Gathering'}
+                    {editingTrekId ? (
+                      <>
+                        <Edit2 className="w-3.5 h-3.5 stroke-[3]" />
+                        {updateTrekMutation.isPending ? 'Updating...' : 'Save Configuration'}
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        {createTrekMutation.isPending ? 'Publishing...' : 'Publish Gathering'}
+                      </>
+                    )}
                   </button>
                 </form>
               </div>
