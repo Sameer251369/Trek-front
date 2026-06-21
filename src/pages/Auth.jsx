@@ -1,8 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Compass, Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { authAPI } from '../api';
+
+// Background images cycled behind the auth form.
+// These live in /frontend/public, so they're referenced from the site root.
+const BACKGROUND_IMAGES = [
+  '/aleksandr-popov-9vDdkxSCAD4-unsplash (2).jpg',
+  '/maico-amorim-SJWPKMb9u-k-unsplash.jpg',
+  '/nikolas-gannon-GFbn7t7V68c-unsplash.jpg',
+  '/toomas-tartes-Yizrl9N_eDA-unsplash.jpg',
+];
+
+const SLIDE_DURATION_MS = 6000; // time each image stays on screen
 
 export default function Auth({ isLogin, onAuthSuccess }) {
   const [username, setUsername] = useState('');
@@ -10,6 +21,15 @@ export default function Auth({ isLogin, onAuthSuccess }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [bgIndex, setBgIndex] = useState(0);
+
+  // Cycle through background images on a timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBgIndex((prev) => (prev + 1) % BACKGROUND_IMAGES.length);
+    }, SLIDE_DURATION_MS);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,13 +59,24 @@ export default function Auth({ isLogin, onAuthSuccess }) {
   };
 
   return (
-    /* Fullscreen Wrapper utilizing the image from public folder as a responsive background cover */
-    <div 
-      className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center p-4 overflow-y-auto"
-      style={{ 
-        backgroundImage: `url('/ChatGPT Image Jun 21, 2026, 05_32_20 PM.png')` 
-      }}
-    >
+    /* Fullscreen Wrapper with rotating, cross-fading background images */
+    <div className="fixed inset-0 w-full h-full flex items-center justify-center p-4 overflow-y-auto">
+
+      {/* Background image carousel layer */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden">
+        <AnimatePresence>
+          <motion.div
+            key={bgIndex}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5, ease: 'easeInOut' }}
+            className="absolute inset-0 w-full h-full bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url('${BACKGROUND_IMAGES[bgIndex]}')` }}
+          />
+        </AnimatePresence>
+      </div>
+
       {/* Semi-transparent dark overlay to protect text legibility and blend contrast edges */}
       <div className="absolute inset-0 bg-dark-bg/60 backdrop-blur-[2px] pointer-events-none" />
 
