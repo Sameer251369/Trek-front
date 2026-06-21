@@ -1,7 +1,7 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { Compass, User, LogOut, Settings, ArrowRight } from 'lucide-react';
+import { Compass, User, LogOut, Settings, ArrowRight, ChevronUp, Calendar } from 'lucide-react';
 import { authAPI, treksAPI } from './api';
 
 const Auth = lazy(() => import('./pages/Auth'));
@@ -107,39 +107,93 @@ function NavigationBar({ user, onLogout }) {
 }
 
 function OrganizerFloatingDock({ user }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dockRef = useRef(null);
+
   const { data: treks = [] } = useQuery({
     queryKey: ['organizer-floating-treks'],
     queryFn: treksAPI.list,
     enabled: !!user,
   });
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dockRef.current && !dockRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   if (!user) return null;
 
   const organized = treks
     .filter((item) => item.organizer === user.id)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  if (organized.length === 0) return null;
+
   const nextTrek = organized.find((item) => new Date(item.date) >= new Date()) || organized[0];
 
-  if (!nextTrek) return null;
-
   return (
-    <Link
-      to={`/trek/${nextTrek.id}`}
-      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] no-underline"
-      title={`Manage ${nextTrek.title}`}
-      aria-label={`Manage ${nextTrek.title}`}
-    >
-      <span className="w-9 h-9 rounded-lg bg-dark-bg text-primary flex items-center justify-center shrink-0">
-        <Settings className="w-4 h-4" />
-      </span>
-      <span className="hidden sm:block text-left">
-        <span className="block text-[10px] font-bold uppercase tracking-wider">Manage Expedition</span>
-        <span className="block max-w-[180px] truncate text-sm font-bold">
-          {nextTrek.title}
+    <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+      {isOpen && (
+        <div className="w-72 max-w-[calc(100vw-32px)] max-h-[60vh] overflow-y-auto bg-dark-bg border border-dark-border/60 rounded-xl shadow-2xl shadow-black/40 divide-y divide-dark-border/30">
+          <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/95 sticky top-0">
+            Your Expeditions ({organized.length})
+          </div>
+          {organized.map((trek) => (
+            <Link
+              key={trek.id}
+              to={`/trek/${trek.id}`}
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition duration-150 no-underline group"
+            >
+              <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-dark-bg transition duration-150">
+                <Settings className="w-3.5 h-3.5" />
+              </span>
+              <span className="flex-1 min-w-0 text-left">
+                <span className="block text-sm font-bold text-dark-text group-hover:text-primary transition duration-150 truncate">
+                  {trek.title}
+                </span>
+                <span className="flex items-center gap-1 text-[10px] text-dark-muted truncate">
+                  <Calendar className="w-3 h-3 shrink-0" />
+                  {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </span>
+              </span>
+              <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary transition duration-150" />
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] focus:outline-none"
+        title="Manage Expeditions"
+        aria-label="Manage Expeditions"
+        aria-expanded={isOpen}
+      >
+        <span className="w-9 h-9 rounded-lg bg-dark-bg text-primary flex items-center justify-center shrink-0">
+          <Settings className="w-4 h-4" />
         </span>
-      </span>
-      <ArrowRight className="w-4 h-4 shrink-0" />
-    </Link>
+        <span className="hidden sm:block text-left">
+          <span className="block text-[10px] font-bold uppercase tracking-wider">
+            {organized.length > 1 ? `Manage ${organized.length} Expeditions` : 'Manage Expedition'}
+          </span>
+          <span className="block max-w-[180px] truncate text-sm font-bold">
+            {nextTrek.title}
+          </span>
+        </span>
+        {isOpen ? (
+          <ChevronUp className="w-4 h-4 shrink-0" />
+        ) : (
+          <ArrowRight className="w-4 h-4 shrink-0" />
+        )}
+      </button>
+    </div>
   );
 }
 
