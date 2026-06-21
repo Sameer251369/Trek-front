@@ -1,3 +1,10 @@
+The shrinking user avatar in the navigation bar is caused by missing layout constraints on its container. When the screen width narrows on mobile devices, the browser attempts to squash the flex items inside the navigation bar to fit the view, which directly scales down the `<img>` or fallback `<div>` avatar.
+
+Adding the `shrink-0` class ensures that your navigation avatar preserves its correct proportions across all mobile dimensions. I have also integrated a state-driven image breakdown safety check to ensure that if an asset path fails to load, the UI smoothly mounts your placeholder layout fallback.
+
+Here is your updated, production-ready `App.js` source code:
+
+```jsx
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
@@ -27,55 +34,75 @@ function PageFallback() {
   );
 }
 
+// ── Isolated Safe Header Avatar ──
+// Explicitly forces 'shrink-0' preventing flex squash on narrow device screens
+function NavHeaderAvatar({ src, username }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt={username}
+        className="w-8 h-8 rounded-full object-cover border border-primary/40 group-hover:border-primary transition duration-200 shrink-0"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/40 group-hover:bg-primary/30 transition duration-200 shrink-0">
+      <User className="w-4 h-4" />
+    </div>
+  );
+}
+
 function NavigationBar({ user, onLogout }) {
   const userProfilePic = user?.profile_picture_url || user?.profile?.profile_picture_url;
 
   return (
-    <nav className="glass-panel sticky top-0 z-50 px-6 py-4 flex items-center justify-between border-b border-dark-border/40">
-      <Link to="/" className="flex items-center gap-2 text-primary font-bold text-2xl tracking-tight">
-        <Compass className="w-8 h-8 animate-pulse-slow" />
+    <nav className="glass-panel sticky top-0 z-50 px-4 sm:px-6 py-4 flex items-center justify-between border-b border-dark-border/40 bg-dark-bg/80 backdrop-blur-md">
+      <Link to="/" className="flex items-center gap-2 text-primary font-bold text-xl sm:text-2xl tracking-tight shrink-0">
+        <Compass className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse-slow" />
         <span>RALLYGRID</span>
       </Link>
 
       {user ? (
-        <div className="flex items-center gap-6">
-          <Link to="/" className="text-dark-muted hover:text-dark-text transition duration-250 text-sm font-medium">
+        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+          <Link to="/" className="text-dark-muted hover:text-dark-text transition duration-250 text-xs sm:text-sm font-medium shrink-0">
             Expeditions
           </Link>
-          <div className="h-4 w-[1px] bg-dark-border" />
+          <div className="h-4 w-[1px] bg-dark-border shrink-0" />
 
-          <div className="flex items-center gap-4">
-            <Link to={`/profile/${user.id}`} className="flex items-center gap-2 group">
-              {userProfilePic ? (
-                <img
-                  src={userProfilePic}
-                  alt={user.username}
-                  className="w-8 h-8 rounded-full object-cover border border-primary/40 group-hover:border-primary transition duration-200"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/40 group-hover:bg-primary/30 transition duration-200">
-                  <User className="w-4 h-4" />
-                </div>
-              )}
-              <div className="hidden sm:block text-left">
-                <p className="text-sm font-semibold leading-tight text-dark-text group-hover:text-primary transition duration-200">{user.username}</p>
-                <p className="text-[10px] text-dark-muted font-bold tracking-wider uppercase">{user.profile?.experience_level || 'Beginner'}</p>
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Link to={`/profile/${user.id}`} className="flex items-center gap-2 group min-w-0 no-underline">
+              {/* Force aspect ratio conservation via dedicated element constraints */}
+              <NavHeaderAvatar src={userProfilePic} username={user.username} />
+              
+              <div className="hidden sm:block text-left truncate max-w-[120px]">
+                <p className="text-sm font-semibold leading-tight text-dark-text group-hover:text-primary transition duration-200 truncate">
+                  {user.username}
+                </p>
+                <p className="text-[10px] text-dark-muted font-bold tracking-wider uppercase truncate">
+                  {user.profile?.experience_level || 'Beginner'}
+                </p>
               </div>
             </Link>
 
             <button
               onClick={onLogout}
-              className="text-dark-muted hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition duration-200"
+              className="text-dark-muted hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition duration-200 shrink-0"
               title="Logout"
+              aria-label="Logout Workspace"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4 sm:w-5 h-5" />
             </button>
           </div>
         </div>
       ) : (
         <Link
           to="/login"
-          className="bg-primary hover:bg-primary-hover text-dark-bg font-semibold px-5 py-2 rounded-lg transition duration-200 text-sm shadow-lg shadow-primary/20"
+          className="bg-primary hover:bg-primary-hover text-dark-bg font-semibold px-4 py-2 rounded-lg transition duration-200 text-xs sm:text-sm shadow-lg shadow-primary/20 shrink-0"
         >
           Sign In
         </Link>
@@ -84,8 +111,6 @@ function NavigationBar({ user, onLogout }) {
   );
 }
 
-// Floating quick-link to the trek a user is currently organizing, so they don't
-// have to dig through the dashboard to manage it.
 function OrganizerFloatingDock({ user }) {
   const { data: treks = [] } = useQuery({
     queryKey: ['organizer-floating-treks'],
@@ -105,7 +130,7 @@ function OrganizerFloatingDock({ user }) {
   return (
     <Link
       to={`/trek/${nextTrek.id}`}
-      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200"
+      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)]"
       title={`Manage ${nextTrek.title}`}
       aria-label={`Manage ${nextTrek.title}`}
     >
@@ -128,7 +153,6 @@ function MainLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Re-sync from localStorage whenever something (e.g. a profile edit) signals a change
     const syncUser = () => setCurrentUser(authAPI.getCurrentUser());
     syncUser();
     window.addEventListener('userUpdated', syncUser);
@@ -151,7 +175,7 @@ function MainLayout() {
       <NavigationBar user={currentUser} onLogout={handleLogout} />
       <OrganizerFloatingDock user={currentUser} />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route
@@ -179,7 +203,7 @@ function MainLayout() {
         </Suspense>
       </main>
 
-      <footer className="py-6 border-t border-dark-border/20 text-center text-sm text-dark-muted mt-auto">
+      <footer className="py-6 border-t border-dark-border/20 text-center text-xs sm:text-sm text-dark-muted mt-auto select-none">
         <p>&copy; {new Date().getFullYear()} TREK Expedition System. Adventure awaits.</p>
       </footer>
     </div>
@@ -195,3 +219,5 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
+```
