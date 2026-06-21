@@ -143,15 +143,27 @@ function OrganizerFloatingDock({ user }) {
 
   // Poll each organized expedition's chat so we can compute unread counts.
   // This stays lightweight since it's only the organizer's own expeditions.
+  // Shorter interval + refetch-on-focus so badges show up promptly when testing
+  // or when switching back to this tab after someone else messages the group.
   const unreadQueries = useQueries({
     queries: organized.map((trek) => ({
       queryKey: ['dock-chat-unread', trek.id],
       queryFn: () => chatAPI.listMessages(trek.id),
       enabled: !!user,
-      refetchInterval: 20000,
-      staleTime: 10000,
+      refetchInterval: 8000,
+      staleTime: 5000,
+      refetchOnWindowFocus: true,
     })),
   });
+
+  // Force an immediate refetch the moment the dropdown is opened, so counts
+  // are fresh rather than waiting for the next poll tick.
+  useEffect(() => {
+    if (isOpen) {
+      unreadQueries.forEach((q) => q.refetch?.());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Close dropdown on outside click
   useEffect(() => {
