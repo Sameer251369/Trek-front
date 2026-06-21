@@ -116,37 +116,45 @@ function getChatLastSeen(trekId) {
   }
 }
 
-function UnreadBadge({ count, className = '' }) {
+function Badge({ count, className = '', color = 'red' }) {
   if (!count || count <= 0) return null;
+  const colorClasses = color === 'red'
+    ? 'bg-red-500 text-white'
+    : 'bg-primary text-dark-bg';
   return (
     <span
-      className={`flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black leading-none shrink-0 ${className}`}
+      className={`flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black leading-none shrink-0 ${colorClasses} ${className}`}
     >
       {count > 9 ? '9+' : count}
     </span>
   );
 }
 
-function OrganizerFloatingDock({ user }) {
+function ExpeditionsFloatingDock({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const dockRef = useRef(null);
 
   const { data: treks = [] } = useQuery({
-    queryKey: ['organizer-floating-treks'],
+    queryKey: ['dock-treks'],
     queryFn: treksAPI.list,
     enabled: !!user,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 
+  // Expeditions this user organizes vs. expeditions they've joined as a member
   const organized = treks
     .filter((item) => item.organizer === user?.id)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const joined = treks
+    .filter((item) => item.is_member && item.organizer !== user?.id)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const allRelevant = [...organized, ...joined];
 
-  // Poll each organized expedition's chat so we can compute unread counts.
-  // This stays lightweight since it's only the organizer's own expeditions.
-  // Shorter interval + refetch-on-focus so badges show up promptly when testing
-  // or when switching back to this tab after someone else messages the group.
+  // Poll chat for every expedition this user is part of (organizing or joined)
+  // so unread badges show up for everyone in real time, not just organizers.
   const unreadQueries = useQueries({
-    queries: organized.map((trek) => ({
+    queries: allRelevant.map((trek) => ({
       queryKey: ['dock-chat-unread', trek.id],
       queryFn: () => chatAPI.listMessages(trek.id),
       enabled: !!user,
@@ -156,14 +164,17 @@ function OrganizerFloatingDock({ user }) {
     })),
   });
 
-  // Force an immediate refetch the moment the dropdown is opened, so counts
-  // are fresh rather than waiting for the next poll tick.
-  useEffect(() => {
-    if (isOpen) {
-      unreadQueries.forEach((q) => q.refetch?.());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  // Pending join requests only apply to expeditions this user organizes
+  const requestQueries = useQueries({
+    queries: organized.map((trek) => ({
+      queryKey: ['dock-pending-requests', trek.id],
+      queryFn: () => treksAPI.listRequests(trek.id),
+      enabled: !!user,
+      refetchInterval: 15000,
+      staleTime: 8000,
+      refetchOnWindowFocus: true,
+    })),
+  });
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -176,14 +187,21 @@ function OrganizerFloatingDock({ user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Force a fresh pull the moment the dropdown opens, rather than waiting for the next poll tick
+  useEffect(() => {
+    if (isOpen) {
+      unreadQueries.forEach((q) => q.refetch?.());
+      requestQueries.forEach((q) => q.refetch?.());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   if (!user) return null;
-  if (organized.length === 0) return null;
+  if (allRelevant.length === 0) return null;
 
-  const nextTrek = organized.find((item) => new Date(item.date) >= new Date()) || organized[0];
-
-  // Map of trekId -> unread count (messages newer than last-seen, excluding own messages)
+  // trekId -> unread message count (messages newer than this user's last-seen, excluding their own)
   const unreadByTrek = {};
-  organized.forEach((trek, idx) => {
+  allRelevant.forEach((trek, idx) => {
     const msgs = unreadQueries[idx]?.data || [];
     const lastSeen = getChatLastSeen(trek.id);
     const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
@@ -193,54 +211,90 @@ function OrganizerFloatingDock({ user }) {
     }).length;
   });
 
+  // trekId -> pending join request count (organizer-only data)
+  const pendingByTrek = {};
+  organized.forEach((trek, idx) => {
+    const reqs = requestQueries[idx]?.data || [];
+    pendingByTrek[trek.id] = reqs.filter((r) => r.status === 'PENDING').length;
+  });
+
   const totalUnread = Object.values(unreadByTrek).reduce((sum, n) => sum + n, 0);
+  const totalPending = Object.values(pendingByTrek).reduce((sum, n) => sum + n, 0);
+  const totalNotifications = totalUnread + totalPending;
+
+  const renderTrekRow = (trek, { showPending }) => {
+    const unreadCount = unreadByTrek[trek.id] || 0;
+    const pendingCount = showPending ? (pendingByTrek[trek.id] || 0) : 0;
+    return (
+      <Link
+        key={trek.id}
+        to={`/trek/${trek.id}`}
+        onClick={() => setIsOpen(false)}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition duration-150 no-underline group"
+      >
+        <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-dark-bg transition duration-150">
+          <Settings className="w-3.5 h-3.5" />
+        </span>
+        <span className="flex-1 min-w-0 text-left">
+          <span className="block text-sm font-bold text-dark-text group-hover:text-primary transition duration-150 truncate">
+            {trek.title}
+          </span>
+          <span className="flex items-center gap-1 text-[10px] text-dark-muted truncate">
+            <Calendar className="w-3 h-3 shrink-0" />
+            {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {unreadCount > 0 && (
+              <span className="text-primary font-bold ml-1">
+                • {unreadCount} new message{unreadCount > 1 ? 's' : ''}
+              </span>
+            )}
+            {pendingCount > 0 && (
+              <span className="text-yellow-400 font-bold ml-1">
+                • {pendingCount} pending
+              </span>
+            )}
+          </span>
+        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          <Badge count={pendingCount} color="accent" />
+          <Badge count={unreadCount} color="red" />
+        </div>
+        <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary transition duration-150" />
+      </Link>
+    );
+  };
 
   return (
     <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
       {isOpen && (
-        <div className="w-72 max-w-[calc(100vw-32px)] max-h-[60vh] overflow-y-auto bg-dark-bg border border-dark-border/60 rounded-xl shadow-2xl shadow-black/40 divide-y divide-dark-border/30">
-          <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/95 sticky top-0">
-            Your Expeditions ({organized.length})
-          </div>
-          {organized.map((trek) => {
-            const unreadCount = unreadByTrek[trek.id] || 0;
-            return (
-              <Link
-                key={trek.id}
-                to={`/trek/${trek.id}`}
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition duration-150 no-underline group"
-              >
-                <span className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-dark-bg transition duration-150">
-                  <Settings className="w-3.5 h-3.5" />
-                </span>
-                <span className="flex-1 min-w-0 text-left">
-                  <span className="block text-sm font-bold text-dark-text group-hover:text-primary transition duration-150 truncate">
-                    {trek.title}
-                  </span>
-                  <span className="flex items-center gap-1 text-[10px] text-dark-muted truncate">
-                    <Calendar className="w-3 h-3 shrink-0" />
-                    {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    {unreadCount > 0 && (
-                      <span className="text-primary font-bold ml-1">
-                        • {unreadCount} new message{unreadCount > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <UnreadBadge count={unreadCount} />
-                <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary transition duration-150" />
-              </Link>
-            );
-          })}
+        <div className="w-72 max-w-[calc(100vw-32px)] max-h-[70vh] overflow-y-auto bg-dark-bg border border-dark-border/60 rounded-xl shadow-2xl shadow-black/40 divide-y divide-dark-border/30">
+          {organized.length > 0 && (
+            <div>
+              <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/95 sticky top-0">
+                Organizing ({organized.length})
+              </div>
+              <div className="divide-y divide-dark-border/20">
+                {organized.map((trek) => renderTrekRow(trek, { showPending: true }))}
+              </div>
+            </div>
+          )}
+          {joined.length > 0 && (
+            <div>
+              <div className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-dark-muted bg-dark-bg/95 sticky top-0">
+                Joined ({joined.length})
+              </div>
+              <div className="divide-y divide-dark-border/20">
+                {joined.map((trek) => renderTrekRow(trek, { showPending: false }))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className="relative flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] focus:outline-none"
-        title="Manage Expeditions"
-        aria-label="Manage Expeditions"
+        title="Your Expeditions"
+        aria-label="Your Expeditions"
         aria-expanded={isOpen}
       >
         <span className="w-9 h-9 rounded-lg bg-dark-bg text-primary flex items-center justify-center shrink-0">
@@ -248,10 +302,10 @@ function OrganizerFloatingDock({ user }) {
         </span>
         <span className="hidden sm:block text-left">
           <span className="block text-[10px] font-bold uppercase tracking-wider">
-            {organized.length > 1 ? `Manage ${organized.length} Expeditions` : 'Manage Expedition'}
+            Your Expeditions
           </span>
-          <span className="block max-w-[180px] truncate text-sm font-bold">
-            {nextTrek.title}
+          <span className="block max-w-[200px] truncate text-sm font-bold">
+            {organized.length} organizing • {joined.length} joined
           </span>
         </span>
         {isOpen ? (
@@ -259,8 +313,9 @@ function OrganizerFloatingDock({ user }) {
         ) : (
           <ArrowRight className="w-4 h-4 shrink-0" />
         )}
-        <UnreadBadge
-          count={totalUnread}
+        <Badge
+          count={totalNotifications}
+          color="red"
           className="absolute -top-1.5 -right-1.5 border-2 border-dark-bg"
         />
       </button>
@@ -293,7 +348,7 @@ function MainLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-dark-bg">
       <NavigationBar user={currentUser} onLogout={handleLogout} />
-      <OrganizerFloatingDock user={currentUser} />
+      <ExpeditionsFloatingDock user={currentUser} />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Suspense fallback={<PageFallback />}>
