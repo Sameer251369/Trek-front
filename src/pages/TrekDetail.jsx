@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -23,6 +23,16 @@ export default function TrekDetail() {
     queryKey: ['trek', id],
     queryFn: () => treksAPI.get(id),
   });
+  useEffect(() => {
+  if (trek) {
+    console.log('TREK DATA', {
+      is_member: trek.is_member,
+      join_request_status: trek.join_request_status,
+      organizer: trek.organizer,
+      currentUser: currentUser?.id,
+    });
+  }
+}, [trek, currentUser]);
 
   const isOrganizer = trek && currentUser && trek.organizer === currentUser.id;
 
