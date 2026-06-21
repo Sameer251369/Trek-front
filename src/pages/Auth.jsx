@@ -39,18 +39,28 @@ export default function Auth({ isLogin, onAuthSuccess }) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[75vh]">
+    /* Fullscreen Wrapper utilizing the image from public folder as a responsive background cover */
+    <div 
+      className="fixed inset-0 w-full h-full bg-cover bg-center bg-no-repeat flex items-center justify-center p-4 overflow-y-auto"
+      style={{ 
+        backgroundImage: `url('/ChatGPT Image Jun 21, 2026, 05_32_20 PM.png')` 
+      }}
+    >
+      {/* Semi-transparent dark overlay to protect text legibility and blend contrast edges */}
+      <div className="absolute inset-0 bg-dark-bg/60 backdrop-blur-[2px] pointer-events-none" />
+
+      {/* Main Authentication Card */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md p-8 glass-panel rounded-2xl shadow-2xl relative overflow-hidden"
+        className="w-full max-w-md p-6 sm:p-8 glass-panel rounded-2xl shadow-2xl relative overflow-hidden my-auto z-15 border border-dark-border/40 bg-dark-card/75 backdrop-blur-md"
       >
         {/* Accent Glow Line */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent" />
         
         {/* Header Section */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 border border-primary/20 text-primary mb-3">
             <Compass className="w-8 h-8 animate-pulse-slow" />
           </div>
@@ -71,7 +81,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
         )}
 
         {/* Form Fields */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-dark-muted mb-2">
               Username
@@ -83,7 +93,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-dark-bg/40"
                 placeholder="yourname123"
               />
             </div>
@@ -101,7 +111,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                  className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-dark-bg/40"
                   placeholder="name@domain.com"
                 />
               </div>
@@ -119,7 +129,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                className="w-full pl-11 pr-4 py-3 rounded-xl glass-input text-dark-text text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition bg-dark-bg/40"
                 placeholder="••••••••"
               />
             </div>
