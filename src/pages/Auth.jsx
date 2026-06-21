@@ -10,7 +10,6 @@ const BACKGROUND_IMAGES = [
   '/rostislav-uzunov-Jnma4hh2vUs-unsplash.jpg',
   '/shubham-dhage-2UlycB5oNEs-unsplash.jpg',
   '/logan-voss-hT0nO6d2QVE-unsplash.jpg',
-  '/akif-waseem-mnSH1Tfd-Yc-unsplash.jpg',
 ];
 
 const SLIDE_DURATION_MS = 6000; // time each image stays on screen
