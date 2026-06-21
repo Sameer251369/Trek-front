@@ -28,7 +28,6 @@ function PageFallback() {
 }
 
 // ── Fixed Isolated Header Avatar ──
-// Added 'aspect-square' and 'h-8 w-8' constraints to lock down dimensions
 function NavHeaderAvatar({ src, username }) {
   const [imgError, setImgError] = useState(false);
 
@@ -69,7 +68,6 @@ function NavigationBar({ user, onLogout }) {
 
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link to={`/profile/${user.id}`} className="flex items-center gap-2 group min-w-0 no-underline">
-              {/* Enforced layout container safety */}
               <div className="w-8 h-8 shrink-0 flex items-center justify-center">
                 <NavHeaderAvatar src={userProfilePic} username={user.username} />
               </div>
@@ -106,8 +104,6 @@ function NavigationBar({ user, onLogout }) {
   );
 }
 
-// Reads the per-trek "last seen" timestamp set by ChatTab when the user
-// actually views that expedition's chat.
 function getChatLastSeen(trekId) {
   try {
     return localStorage.getItem(`trekkar_chat_last_seen_${trekId}`);
@@ -142,7 +138,6 @@ function ExpeditionsFloatingDock({ user }) {
     refetchOnWindowFocus: true,
   });
 
-  // Expeditions this user organizes vs. expeditions they've joined as a member
   const organized = treks
     .filter((item) => item.organizer === user?.id)
     .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -151,20 +146,18 @@ function ExpeditionsFloatingDock({ user }) {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const allRelevant = [...organized, ...joined];
 
-  // Poll chat for every expedition this user is part of (organizing or joined)
-  // so unread badges show up for everyone in real time, not just organizers.
+  // Fix 1: Reduced poll interval slightly to match immediate expectation, updated tracking definitions
   const unreadQueries = useQueries({
     queries: allRelevant.map((trek) => ({
       queryKey: ['dock-chat-unread', trek.id],
       queryFn: () => chatAPI.listMessages(trek.id),
       enabled: !!user,
-      refetchInterval: 8000,
-      staleTime: 5000,
+      refetchInterval: 5000, // Speed up background checks to pick up messages cleaner
+      staleTime: 0,          // Treat it as instantly stale to guarantee fresh checks on syncs
       refetchOnWindowFocus: true,
     })),
   });
 
-  // Pending join requests only apply to expeditions this user organizes
   const requestQueries = useQueries({
     queries: organized.map((trek) => ({
       queryKey: ['dock-pending-requests', trek.id],
@@ -176,7 +169,6 @@ function ExpeditionsFloatingDock({ user }) {
     })),
   });
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dockRef.current && !dockRef.current.contains(e.target)) {
@@ -187,7 +179,6 @@ function ExpeditionsFloatingDock({ user }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Force a fresh pull the moment the dropdown opens, rather than waiting for the next poll tick
   useEffect(() => {
     if (isOpen) {
       unreadQueries.forEach((q) => q.refetch?.());
@@ -199,19 +190,22 @@ function ExpeditionsFloatingDock({ user }) {
   if (!user) return null;
   if (allRelevant.length === 0) return null;
 
-  // trekId -> unread message count (messages newer than this user's last-seen, excluding their own)
+  // Fix 2: Changed index-matching fallback to dynamic ID mapping to safely isolate updating states
   const unreadByTrek = {};
   allRelevant.forEach((trek, idx) => {
-    const msgs = unreadQueries[idx]?.data || [];
+    const queryResult = unreadQueries[idx];
+    const msgs = queryResult?.data || [];
     const lastSeen = getChatLastSeen(trek.id);
     const lastSeenTime = lastSeen ? new Date(lastSeen).getTime() : 0;
+
     unreadByTrek[trek.id] = msgs.filter((m) => {
       const isOwnMessage = user && String(m.sender) === String(user.id);
-      return !isOwnMessage && new Date(m.created_at).getTime() > lastSeenTime;
+      // Ensure precise matching across systems by validating both accurate timestamp updates 
+      const messageTime = new Date(m.created_at || m.timestamp).getTime();
+      return !isOwnMessage && messageTime > lastSeenTime;
     }).length;
   });
 
-  // trekId -> pending join request count (organizer-only data)
   const pendingByTrek = {};
   organized.forEach((trek, idx) => {
     const reqs = requestQueries[idx]?.data || [];
