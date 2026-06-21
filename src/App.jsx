@@ -1,10 +1,3 @@
-The shrinking user avatar in the navigation bar is caused by missing layout constraints on its container. When the screen width narrows on mobile devices, the browser attempts to squash the flex items inside the navigation bar to fit the view, which directly scales down the `<img>` or fallback `<div>` avatar.
-
-Adding the `shrink-0` class ensures that your navigation avatar preserves its correct proportions across all mobile dimensions. I have also integrated a state-driven image breakdown safety check to ensure that if an asset path fails to load, the UI smoothly mounts your placeholder layout fallback.
-
-Here is your updated, production-ready `App.js` source code:
-
-```jsx
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
@@ -34,8 +27,8 @@ function PageFallback() {
   );
 }
 
-// ── Isolated Safe Header Avatar ──
-// Explicitly forces 'shrink-0' preventing flex squash on narrow device screens
+// ── Fixed Isolated Header Avatar ──
+// Added 'aspect-square' and 'h-8 w-8' constraints to lock down dimensions
 function NavHeaderAvatar({ src, username }) {
   const [imgError, setImgError] = useState(false);
 
@@ -44,14 +37,14 @@ function NavHeaderAvatar({ src, username }) {
       <img
         src={src}
         alt={username}
-        className="w-8 h-8 rounded-full object-cover border border-primary/40 group-hover:border-primary transition duration-200 shrink-0"
+        className="w-8 h-8 rounded-full object-cover aspect-square border border-primary/40 group-hover:border-primary transition duration-200 shrink-0 block"
         onError={() => setImgError(true)}
       />
     );
   }
 
   return (
-    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/40 group-hover:bg-primary/30 transition duration-200 shrink-0">
+    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/40 group-hover:bg-primary/30 transition duration-200 shrink-0 aspect-square">
       <User className="w-4 h-4" />
     </div>
   );
@@ -62,22 +55,24 @@ function NavigationBar({ user, onLogout }) {
 
   return (
     <nav className="glass-panel sticky top-0 z-50 px-4 sm:px-6 py-4 flex items-center justify-between border-b border-dark-border/40 bg-dark-bg/80 backdrop-blur-md">
-      <Link to="/" className="flex items-center gap-2 text-primary font-bold text-xl sm:text-2xl tracking-tight shrink-0">
+      <Link to="/" className="flex items-center gap-2 text-primary font-bold text-xl sm:text-2xl tracking-tight shrink-0 no-underline">
         <Compass className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse-slow" />
         <span>RALLYGRID</span>
       </Link>
 
       {user ? (
         <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-          <Link to="/" className="text-dark-muted hover:text-dark-text transition duration-250 text-xs sm:text-sm font-medium shrink-0">
+          <Link to="/" className="text-dark-muted hover:text-dark-text transition duration-250 text-xs sm:text-sm font-medium shrink-0 no-underline">
             Expeditions
           </Link>
           <div className="h-4 w-[1px] bg-dark-border shrink-0" />
 
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link to={`/profile/${user.id}`} className="flex items-center gap-2 group min-w-0 no-underline">
-              {/* Force aspect ratio conservation via dedicated element constraints */}
-              <NavHeaderAvatar src={userProfilePic} username={user.username} />
+              {/* Enforced layout container safety */}
+              <div className="w-8 h-8 shrink-0 flex items-center justify-center">
+                <NavHeaderAvatar src={userProfilePic} username={user.username} />
+              </div>
               
               <div className="hidden sm:block text-left truncate max-w-[120px]">
                 <p className="text-sm font-semibold leading-tight text-dark-text group-hover:text-primary transition duration-200 truncate">
@@ -91,18 +86,18 @@ function NavigationBar({ user, onLogout }) {
 
             <button
               onClick={onLogout}
-              className="text-dark-muted hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition duration-200 shrink-0"
+              className="text-dark-muted hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition duration-200 shrink-0 flex items-center justify-center focus:outline-none"
               title="Logout"
               aria-label="Logout Workspace"
             >
-              <LogOut className="w-4 h-4 sm:w-5 h-5" />
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
       ) : (
         <Link
           to="/login"
-          className="bg-primary hover:bg-primary-hover text-dark-bg font-semibold px-4 py-2 rounded-lg transition duration-200 text-xs sm:text-sm shadow-lg shadow-primary/20 shrink-0"
+          className="bg-primary hover:bg-primary-hover text-dark-bg font-semibold px-4 py-2 rounded-lg transition duration-200 text-xs sm:text-sm shadow-lg shadow-primary/20 shrink-0 no-underline"
         >
           Sign In
         </Link>
@@ -130,7 +125,7 @@ function OrganizerFloatingDock({ user }) {
   return (
     <Link
       to={`/trek/${nextTrek.id}`}
-      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)]"
+      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 bg-primary text-dark-bg rounded-xl shadow-2xl shadow-primary/20 px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] no-underline"
       title={`Manage ${nextTrek.title}`}
       aria-label={`Manage ${nextTrek.title}`}
     >
@@ -219,5 +214,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-```
