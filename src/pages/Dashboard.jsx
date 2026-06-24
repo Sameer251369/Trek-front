@@ -1,18 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  Calendar, Users, Search, AlertTriangle, Plus, X, 
+import {
+  Calendar, Users, Search, AlertTriangle, Plus, X,
   ArrowRight, User, Upload, Network, Edit2, Trash2, Share2, Check, MoreVertical
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI } from '../api';
 
 const DIFFICULTY_STYLES = {
-  EASY:     'border-green-500/40  bg-green-500/10  text-green-400',
-  MODERATE: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400',
-  HARD:     'border-orange-500/40 bg-orange-500/10 text-orange-400',
-  EXTREME:  'border-red-500/40     bg-red-500/10     text-red-400',
+  EASY:     'border-green-400/30  bg-green-400/10  text-green-300',
+  MODERATE: 'border-yellow-400/30 bg-yellow-400/10 text-yellow-300',
+  HARD:     'border-orange-400/30 bg-orange-400/10 text-orange-300',
+  EXTREME:  'border-red-400/30     bg-red-400/10     text-red-300',
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 18, scale: 0.98 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.4, delay: Math.min(i * 0.05, 0.4), ease: [0.22, 1, 0.36, 1] },
+  }),
 };
 
 export default function Dashboard() {
@@ -26,7 +36,7 @@ export default function Dashboard() {
 
   // Modal, Mode, & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTrekId, setEditingTrekId] = useState(null); 
+  const [editingTrekId, setEditingTrekId] = useState(null);
   const [newTrekTitle, setNewTrekTitle] = useState('');
   const [newTrekDesc, setNewTrekDesc] = useState('');
   const [newTrekDate, setNewTrekDate] = useState('');
@@ -128,11 +138,11 @@ export default function Dashboard() {
     setNewTrekDiff('MODERATE');
     setNewTrekDestination('');
     setNewTrekImage(null);
-    
+
     if (newTrekImagePreview) {
       URL.revokeObjectURL(newTrekImagePreview);
     }
-    setNewTrekImagePreview(null); 
+    setNewTrekImagePreview(null);
     setFormError(null);
   };
 
@@ -225,66 +235,63 @@ export default function Dashboard() {
     <div className="space-y-6 max-w-7xl mx-auto w-full">
 
       {/* ── Hero Banner ── */}
-      <div
-        className="relative py-12 px-8 sm:px-12 flex flex-col md:flex-row md:items-center justify-between gap-6 border border-[#1E1E1E] bg-[#0A0A0A] overflow-hidden"
-        style={{
-          backgroundImage: `
-            repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(232,255,0,0.03) 39px, rgba(232,255,0,0.03) 40px),
-            repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(232,255,0,0.03) 39px, rgba(232,255,0,0.03) 40px)
-          `,
-        }}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="relative py-14 px-8 sm:px-14 flex flex-col md:flex-row md:items-center justify-between gap-8 rounded-[2rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.35)] overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5" style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 0)' }} />
-        <div className="absolute top-0 right-0 w-0.5 h-32 bg-primary/30" />
-        <div className="absolute top-0 right-0 h-0.5 w-32 bg-primary/30" />
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-primary/[0.04] rounded-full blur-3xl pointer-events-none" />
 
         <div className="space-y-3 max-w-xl relative z-10">
-          <div className="flex items-center gap-2">
-            <div className="w-0.5 h-5 bg-primary shrink-0" />
-            <span className="text-primary font-black text-[10px] uppercase tracking-[0.3em]">RallyGrid Network</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            <span className="text-primary font-semibold text-[11px] uppercase tracking-[0.2em]">RallyGrid Network</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-dark-text uppercase leading-none">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-dark-text leading-[1.05]">
             Gather the right<br />
-            <span className="text-primary">People</span>
+            <span className="text-primary">people</span>
           </h1>
-          <p className="text-dark-muted text-sm leading-relaxed max-w-sm">
-            Create cricket squads, parties, protests, meetups, workshops, and every kind of live event.
+          <p className="text-dark-muted text-sm sm:text-base leading-relaxed max-w-sm">
+            Create cricket squads, parties, protests, meetups, workshops — and every kind of live event.
           </p>
         </div>
 
-        <button
+        <motion.button
+          whileTap={{ scale: 0.97 }}
           onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="relative z-10 shrink-0 flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-dark-bg font-black px-7 py-4 text-[11px] uppercase tracking-[0.2em] transition-colors duration-150 active:scale-[0.98] focus:outline-none"
+          className="relative z-10 shrink-0 flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-dark-bg font-bold px-7 py-4 rounded-full text-sm transition-colors duration-200 shadow-[0_10px_30px_rgba(232,255,0,0.25)] focus:outline-none"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
           Create Gathering
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* ── Filter Bar ── */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between px-4 py-3 bg-[#0D0D0D] border border-[#1E1E1E]">
-        <div className="flex items-center gap-2 w-full sm:max-w-xs border border-[#1E1E1E] bg-[#0A0A0A]">
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between px-4 py-3 rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/[0.07]">
+        <div className="flex items-center gap-2 w-full sm:max-w-xs rounded-full bg-white/[0.04] border border-white/[0.06] px-1">
           <div className="pl-3 shrink-0">
             <Search className="w-3.5 h-3.5 text-dark-muted" />
           </div>
           <input
             type="text"
-            placeholder="SEARCH GATHERINGS AND LOCATIONS"
+            placeholder="Search gatherings and locations"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pr-4 py-2.5 bg-transparent text-dark-text text-[11px] tracking-[0.1em] uppercase placeholder:text-[#333] focus:outline-none"
+            className="w-full pr-4 py-2.5 bg-transparent text-dark-text text-sm placeholder:text-dark-muted/50 focus:outline-none"
           />
         </div>
 
-        <div className="flex items-center h-[40px] border border-[#1E1E1E] bg-[#0A0A0A] w-full sm:w-auto">
+        <div className="flex items-center h-[40px] rounded-full bg-white/[0.04] border border-white/[0.06] w-full sm:w-auto p-1 gap-1">
           {['ALL', 'EASY', 'MODERATE', 'HARD', 'EXTREME'].map((diff) => (
             <button
               key={diff}
               onClick={() => setSelectedDifficulty(diff)}
-              className={`px-3 h-full text-[10px] font-black tracking-[0.12em] uppercase transition-colors duration-100 border-r border-[#1E1E1E] last:border-r-0 focus:outline-none ${
+              className={`px-3.5 h-full rounded-full text-[11px] font-bold tracking-wide uppercase transition-colors duration-200 focus:outline-none ${
                 selectedDifficulty === diff
                   ? 'bg-primary text-dark-bg'
-                  : 'text-dark-muted hover:text-dark-text bg-transparent'
+                  : 'text-dark-muted hover:text-dark-text'
               }`}
             >
               {diff === 'MODERATE' ? 'MOD' : diff}
@@ -297,40 +304,41 @@ export default function Dashboard() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => (
-            <div key={`skeleton-${i}`} className="h-[420px] bg-[#0D0D0D] border border-[#1E1E1E] animate-pulse" />
+            <div key={`skeleton-${i}`} className="h-[420px] rounded-[1.75rem] bg-white/[0.03] border border-white/[0.06] animate-pulse" />
           ))}
         </div>
       ) : isError ? (
-        <div className="p-8 text-center border border-red-500/20 bg-[#0A0A0A]">
-          <div className="w-px h-8 bg-red-500/40 mx-auto mb-4" />
-          <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="text-red-400 text-sm tracking-wide">
+        <div className="p-10 text-center rounded-[1.75rem] border border-red-400/20 bg-red-500/[0.04] backdrop-blur-xl">
+          <AlertTriangle className="w-8 h-8 text-red-300 mx-auto mb-3" />
+          <p className="text-red-300 text-sm tracking-wide">
             Failed to retrieve active gatherings. Ensure your backend server is running.
           </p>
         </div>
       ) : filteredTreks.length === 0 ? (
-        <div className="p-16 text-center border border-[#1E1E1E] bg-[#0A0A0A]">
-          <div className="w-px h-8 bg-[#333] mx-auto mb-4" />
-          <Calendar className="w-10 h-10 mx-auto mb-4 text-[#333]" />
-          <h3 className="text-sm font-black text-dark-text uppercase tracking-[0.2em] mb-1">No Gatherings Found</h3>
-          <p className="text-xs text-dark-muted tracking-wide">
+        <div className="p-16 text-center rounded-[1.75rem] border border-white/[0.07] bg-white/[0.02] backdrop-blur-xl">
+          <Calendar className="w-10 h-10 mx-auto mb-4 text-dark-muted/30" />
+          <h3 className="text-base font-bold text-dark-text mb-1">No gatherings found</h3>
+          <p className="text-sm text-dark-muted">
             Be the first to create one.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTreks.map((trek) => (
-            <div
+          {filteredTreks.map((trek, index) => (
+            <motion.div
               key={trek.id}
-              className="flex flex-col bg-[#0A0A0A] border border-[#1E1E1E] hover:border-[#2A2A2A] transition-colors duration-300 relative group overflow-hidden"
+              custom={index}
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              whileHover={{ y: -4 }}
+              className="flex flex-col rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] hover:border-primary/20 transition-colors duration-300 relative overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
             >
-              <div className="h-[2px] bg-primary w-8" />
-
               {/* 3-Dot Responsive Config Menu Layer */}
               <div className="absolute top-3 right-3 z-30" ref={activeMenuTrekId === trek.id ? menuRef : null}>
                 <button
                   onClick={(e) => toggleMenu(e, trek.id)}
-                  className="p-1.5 bg-[#0A0A0A]/90 border border-[#1E1E1E] hover:border-primary/50 text-dark-text transition-colors focus:outline-none"
+                  className="p-2 rounded-full bg-black/30 backdrop-blur-md border border-white/10 hover:border-primary/40 text-dark-text transition-colors focus:outline-none"
                   title="Actions Menu"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -342,17 +350,17 @@ export default function Dashboard() {
                       initial={{ opacity: 0, scale: 0.95, y: -5 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                      transition={{ duration: 0.12 }}
-                      className="absolute right-0 mt-1 w-40 bg-[#0D0D0D] border border-[#1E1E1E] shadow-xl flex flex-col z-40"
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-44 rounded-2xl bg-[#111]/95 backdrop-blur-2xl border border-white/10 shadow-2xl flex flex-col z-40 overflow-hidden p-1"
                     >
                       <button
                         onClick={() => handleShareLink(trek.id)}
-                        className="w-full text-left px-3 py-2 text-[10px] uppercase font-bold tracking-wider text-dark-muted hover:text-primary hover:bg-[#141414] transition-colors flex items-center justify-between border-b border-[#1E1E1E]"
+                        className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
                       >
                         <span className="flex items-center gap-2">
-                          <Share2 className="w-3 h-3" /> Share Gathering
+                          <Share2 className="w-3.5 h-3.5" /> Share Gathering
                         </span>
-                        {copiedTrekId === trek.id && <Check className="w-3 h-3 text-green-400" />}
+                        {copiedTrekId === trek.id && <Check className="w-3.5 h-3.5 text-green-400" />}
                       </button>
 
                       {/* Organizer Settings Access Gate */}
@@ -360,15 +368,15 @@ export default function Dashboard() {
                         <>
                           <button
                             onClick={() => handleOpenEditModal(trek)}
-                            className="w-full text-left px-3 py-2 text-[10px] uppercase font-bold tracking-wider text-dark-muted hover:text-yellow-400 hover:bg-[#141414] transition-colors flex items-center gap-2 border-b border-[#1E1E1E]"
+                            className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
                           >
-                            <Edit2 className="w-3 h-3" /> Edit Settings
+                            <Edit2 className="w-3.5 h-3.5" /> Edit Settings
                           </button>
                           <button
                             onClick={() => handleDeleteTrek(trek.id)}
-                            className="w-full text-left px-3 py-2 text-[10px] uppercase font-bold tracking-wider text-red-500 hover:text-red-400 hover:bg-[#141414]/30 transition-colors flex items-center gap-2"
+                            className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2"
                           >
-                            <Trash2 className="w-3 h-3" /> Delete Link
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Link
                           </button>
                         </>
                       )}
@@ -378,31 +386,28 @@ export default function Dashboard() {
               </div>
 
               {trek.destination_image_url ? (
-                <div className="h-44 w-full overflow-hidden border-b border-[#1E1E1E] relative">
+                <div className="h-44 w-full overflow-hidden relative">
                   <img
                     src={trek.destination_image_url}
                     alt={trek.destination || trek.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                 </div>
               ) : (
-                <div className="h-44 w-full bg-[#0D0D0D] border-b border-[#1E1E1E] flex items-center justify-center relative"
-                  style={{
-                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(232,255,0,0.02) 8px, rgba(232,255,0,0.02) 9px)',
-                  }}
-                >
-                  <Network className="w-8 h-8 text-[#1E1E1E]" />
+                <div className="h-44 w-full bg-white/[0.02] flex items-center justify-center relative">
+                  <Network className="w-8 h-8 text-white/10" />
                 </div>
               )}
 
               <div className="p-5 flex flex-col flex-1 justify-between gap-5">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[9px] font-black px-2 py-1 border uppercase tracking-[0.18em] ${DIFFICULTY_STYLES[trek.difficulty] || 'border-[#333] text-dark-muted'}`}>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wide ${DIFFICULTY_STYLES[trek.difficulty] || 'border-white/10 text-dark-muted'}`}>
                       {trek.difficulty}
                     </span>
-                    <span className="text-[10px] text-dark-muted font-mono flex items-center gap-1.5">
+                    <span className="text-[11px] text-dark-muted font-medium flex items-center gap-1.5">
                       <Calendar className="w-3 h-3 text-primary shrink-0" />
                       {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
@@ -410,14 +415,11 @@ export default function Dashboard() {
 
                   <div>
                     {trek.destination && (
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <div className="w-0.5 h-3 bg-primary shrink-0" />
-                        <p className="text-[9px] font-black uppercase tracking-[0.25em] text-primary line-clamp-1">
-                          {trek.destination}
-                        </p>
-                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-primary mb-1 line-clamp-1">
+                        {trek.destination}
+                      </p>
                     )}
-                    <h3 className="text-base font-black text-dark-text uppercase tracking-wide leading-tight group-hover:text-primary transition-colors duration-200 line-clamp-1">
+                    <h3 className="text-base font-bold text-dark-text leading-tight group-hover:text-primary transition-colors duration-200 line-clamp-1">
                       {trek.title}
                     </h3>
                     <p className="text-dark-muted text-xs line-clamp-3 mt-1.5 leading-relaxed min-h-[48px]">
@@ -427,31 +429,27 @@ export default function Dashboard() {
                 </div>
 
                 <div>
-                  <div className="border-t border-[#1A1A1A] pt-4 flex items-center justify-between text-xs">
+                  <div className="border-t border-white/[0.06] pt-4 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2 text-dark-muted">
                       {trek.organizer_profile_picture_url ? (
                         <img
                           src={trek.organizer_profile_picture_url}
                           alt={trek.organizer_username || 'Organizer'}
-                          className="w-6 h-6 object-cover border border-primary/40 shrink-0"
-                          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                          className="w-6 h-6 rounded-full object-cover ring-1 ring-white/10 shrink-0"
                         />
                       ) : (
-                        <div
-                          className="w-6 h-6 bg-[#1C1C00] border border-primary/40 flex items-center justify-center shrink-0 font-black text-[9px] uppercase text-primary"
-                          style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                        >
+                        <div className="w-6 h-6 rounded-full bg-primary/15 ring-1 ring-white/10 flex items-center justify-center shrink-0 font-bold text-[10px] uppercase text-primary">
                           {trek.organizer_username ? trek.organizer_username[0] : <User className="w-2.5 h-2.5" />}
                         </div>
                       )}
-                      <span className="text-[11px] truncate max-w-[110px] tracking-wide">
+                      <span className="text-[11px] truncate max-w-[110px]">
                         {trek.organizer_username || 'Organizer'}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-dark-muted">
                       <Users className="w-3 h-3 text-primary shrink-0" />
-                      <span className="font-mono font-black text-dark-text text-[11px]">
+                      <span className="font-semibold text-dark-text text-[11px]">
                         {trek.members_count || 0}
                         <span className="text-primary"> / </span>
                         {trek.capacity}
@@ -464,7 +462,7 @@ export default function Dashboard() {
                     {trek.is_member && trek.join_request_status !== 'PENDING' ? (
                       <Link
                         to={`/trek/${trek.id}`}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-transparent border border-primary text-primary hover:bg-primary hover:text-dark-bg font-black text-[10px] uppercase tracking-[0.18em] transition-colors duration-150 focus:outline-none no-underline"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full bg-transparent border border-primary/40 text-primary hover:bg-primary hover:text-dark-bg font-bold text-[11px] uppercase tracking-wide transition-colors duration-200 focus:outline-none no-underline"
                       >
                         Open Workspace
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -472,15 +470,15 @@ export default function Dashboard() {
                     ) : trek.join_request_status === 'PENDING' ? (
                       <button
                         disabled
-                        className="w-full py-2.5 bg-transparent border border-[#222] text-[#444] font-black text-[10px] uppercase tracking-[0.18em] cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full py-2.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-dark-muted/50 font-bold text-[11px] uppercase tracking-wide cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                        <span className="inline-block w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse" />
+                        <span className="inline-block w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" />
                         Pending Approval
                       </button>
                     ) : trek.join_request_status === 'REJECTED' ? (
                       <button
                         disabled
-                        className="w-full py-2.5 bg-transparent border border-red-900/30 text-red-800 font-black text-[10px] uppercase tracking-[0.18em] cursor-not-allowed"
+                        className="w-full py-2.5 rounded-full bg-transparent border border-red-500/10 text-red-500/50 font-bold text-[11px] uppercase tracking-wide cursor-not-allowed"
                       >
                         Request Rejected
                       </button>
@@ -488,7 +486,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => joinRequestMutation.mutate(trek.id)}
                         disabled={joinRequestMutation.isPending}
-                        className="w-full py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-black text-[10px] uppercase tracking-[0.18em] transition-colors duration-150 focus:outline-none disabled:opacity-50"
+                        className="w-full py-2.5 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-[11px] uppercase tracking-wide transition-colors duration-200 focus:outline-none disabled:opacity-50"
                       >
                         {joinRequestMutation.isPending ? 'Requesting...' : 'Request to Join'}
                       </button>
@@ -496,7 +494,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -509,44 +507,39 @@ export default function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/90"
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm"
               onClick={handleCloseModal}
             />
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ type: 'spring', duration: 0.35 }}
-              className="w-full max-w-lg z-10 relative bg-[#0A0A0A] border border-[#1E1E1E] max-h-[90vh] overflow-y-auto"
+              initial={{ opacity: 0, y: 24, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 24, scale: 0.97 }}
+              transition={{ type: 'spring', duration: 0.4, bounce: 0.18 }}
+              className="w-full max-w-lg z-10 relative bg-[#0c0c0c]/90 backdrop-blur-2xl border border-white/[0.08] rounded-[2rem] max-h-[90vh] overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
               style={{ scrollbarWidth: 'none' }}
             >
-              <div className="h-[2px] bg-primary" />
-
-              <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-[#1E1E1E]">
+              <div className="flex items-start justify-between px-7 pt-7 pb-5 border-b border-white/[0.06]">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-0.5 h-4 bg-primary shrink-0" />
-                    <h2 className="text-[11px] font-black text-dark-text tracking-[0.2em] uppercase">
-                      {editingTrekId ? 'Update Gathering Config' : 'Create New Gathering'}
-                    </h2>
-                  </div>
-                  <p className="text-[11px] text-dark-muted tracking-wide pl-2.5">
+                  <h2 className="text-lg font-bold text-dark-text">
+                    {editingTrekId ? 'Update gathering' : 'Create new gathering'}
+                  </h2>
+                  <p className="text-[12px] text-dark-muted mt-0.5">
                     Set capacity, date, and the kind of energy people should expect.
                   </p>
                 </div>
                 <button
                   onClick={handleCloseModal}
-                  className="p-2 text-dark-muted hover:text-dark-text border border-[#1E1E1E] hover:border-[#333] transition-colors focus:outline-none shrink-0"
+                  className="p-2 rounded-full text-dark-muted hover:text-dark-text bg-white/[0.04] hover:bg-white/[0.08] transition-colors focus:outline-none shrink-0"
                   aria-label="Close modal"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="px-6 py-5">
+              <div className="px-7 py-6">
                 {formError && (
-                  <div className="mb-4 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-300 text-[11px] tracking-wide">
+                  <div className="mb-4 flex items-center gap-2 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-[12px]">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     {formError}
                   </div>
@@ -554,8 +547,8 @@ export default function Dashboard() {
 
                 <form onSubmit={handleCreateSubmit} className="space-y-4 text-sm">
                   <div>
-                    <label htmlFor="trek-title" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
-                      Gathering Title *
+                    <label htmlFor="trek-title" className="block text-xs font-semibold text-dark-muted mb-1.5">
+                      Gathering title *
                     </label>
                     <input
                       id="trek-title"
@@ -564,12 +557,12 @@ export default function Dashboard() {
                       onChange={(e) => setNewTrekTitle(e.target.value)}
                       placeholder="Sunday cricket match"
                       required
-                      className="w-full p-3 bg-[#0D0D0D] border border-[#1E1E1E] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                      className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-dark-muted/40"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="trek-destination" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <label htmlFor="trek-destination" className="block text-xs font-semibold text-dark-muted mb-1.5">
                       Location
                     </label>
                     <input
@@ -578,27 +571,27 @@ export default function Dashboard() {
                       value={newTrekDestination}
                       onChange={(e) => setNewTrekDestination(e.target.value)}
                       placeholder="Cubbon Park, Bengaluru"
-                      className="w-full p-3 bg-[#0D0D0D] border border-[#1E1E1E] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                      className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors placeholder:text-dark-muted/40"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="trek-image" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
-                      Cover Image
+                    <label htmlFor="trek-image" className="block text-xs font-semibold text-dark-muted mb-1.5">
+                      Cover image
                     </label>
                     {newTrekImagePreview ? (
-                      <div className="relative border border-[#1E1E1E] overflow-hidden">
+                      <div className="relative rounded-2xl overflow-hidden border border-white/[0.08]">
                         <img src={newTrekImagePreview} alt="Preview" className="w-full h-32 object-cover" />
                         <button
                           type="button"
                           onClick={() => { setNewTrekImage(null); setNewTrekImagePreview(null); }}
-                          className="absolute top-2 right-2 p-1.5 bg-[#0A0A0A]/90 border border-[#333] text-dark-muted hover:text-dark-text focus:outline-none"
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-dark-muted hover:text-dark-text focus:outline-none"
                         >
                           <X className="w-3 h-3" />
                         </button>
                       </div>
                     ) : (
-                      <div className="relative p-6 bg-[#0D0D0D] border border-dashed border-[#2A2A2A] hover:border-primary/40 flex flex-col items-center justify-center group transition-colors cursor-pointer">
+                      <div className="relative p-6 rounded-2xl bg-white/[0.02] border border-dashed border-white/[0.1] hover:border-primary/30 flex flex-col items-center justify-center group transition-colors cursor-pointer">
                         <input
                           id="trek-image"
                           type="file"
@@ -612,8 +605,8 @@ export default function Dashboard() {
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                         />
-                        <Upload className="w-5 h-5 text-[#333] mb-2 group-hover:text-primary/60 transition-colors" />
-                        <span className="text-[11px] text-[#333] group-hover:text-dark-muted tracking-[0.1em] uppercase transition-colors">
+                        <Upload className="w-5 h-5 text-dark-muted/40 mb-2 group-hover:text-primary/60 transition-colors" />
+                        <span className="text-[12px] text-dark-muted/60 group-hover:text-dark-muted transition-colors">
                           Click to upload cover photo
                         </span>
                       </div>
@@ -621,7 +614,7 @@ export default function Dashboard() {
                   </div>
 
                   <div>
-                    <label htmlFor="trek-desc" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                    <label htmlFor="trek-desc" className="block text-xs font-semibold text-dark-muted mb-1.5">
                       Details *
                     </label>
                     <textarea
@@ -631,13 +624,13 @@ export default function Dashboard() {
                       placeholder="What is happening, what to bring, meeting point, timing..."
                       rows="3"
                       required
-                      className="w-full p-3 bg-[#0D0D0D] border border-[#1E1E1E] text-dark-text text-sm focus:outline-none focus:border-primary/50 resize-none transition-colors"
+                      className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-dark-text text-sm focus:outline-none focus:border-primary/50 resize-none transition-colors placeholder:text-dark-muted/40"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="trek-date" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                      <label htmlFor="trek-date" className="block text-xs font-semibold text-dark-muted mb-1.5">
                         Date *
                       </label>
                       <input
@@ -646,11 +639,11 @@ export default function Dashboard() {
                         value={newTrekDate}
                         onChange={(e) => setNewTrekDate(e.target.value)}
                         required
-                        className="w-full p-3 bg-[#0D0D0D] border border-[#1E1E1E] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                        className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
                       />
                     </div>
                     <div>
-                      <label htmlFor="trek-capacity" className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
+                      <label htmlFor="trek-capacity" className="block text-xs font-semibold text-dark-muted mb-1.5">
                         Capacity *
                       </label>
                       <input
@@ -661,25 +654,25 @@ export default function Dashboard() {
                         min="2"
                         max="100"
                         required
-                        className="w-full p-3 bg-[#0D0D0D] border border-[#1E1E1E] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
+                        className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
-                      Intensity Level
+                    <span className="block text-xs font-semibold text-dark-muted mb-1.5">
+                      Intensity level
                     </span>
-                    <div className="flex border border-[#1E1E1E] bg-[#0D0D0D]">
+                    <div className="flex rounded-full bg-white/[0.04] border border-white/[0.08] p-1 gap-1">
                       {['EASY', 'MODERATE', 'HARD', 'EXTREME'].map((diff) => (
                         <button
                           key={diff}
                           type="button"
                           onClick={() => setNewTrekDiff(diff)}
-                          className={`flex-1 py-2.5 font-black text-[9px] uppercase tracking-[0.12em] border-r border-[#1E1E1E] last:border-r-0 transition-colors duration-100 focus:outline-none ${
+                          className={`flex-1 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-wide transition-colors duration-200 focus:outline-none ${
                             newTrekDiff === diff
                               ? 'bg-primary text-dark-bg'
-                              : 'text-dark-muted hover:text-dark-text bg-transparent'
+                              : 'text-dark-muted hover:text-dark-text'
                           }`}
                         >
                           {diff === 'MODERATE' ? 'MOD' : diff}
@@ -688,23 +681,24 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={createTrekMutation.isPending || updateTrekMutation.isPending}
-                    className="w-full py-4 bg-primary hover:bg-primary-hover text-dark-bg font-black text-[11px] uppercase tracking-[0.2em] transition-colors duration-150 mt-2 flex items-center justify-center gap-2 focus:outline-none disabled:opacity-50"
+                    className="w-full py-4 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-sm transition-colors duration-200 mt-2 flex items-center justify-center gap-2 focus:outline-none disabled:opacity-50"
                   >
                     {editingTrekId ? (
                       <>
                         <Edit2 className="w-3.5 h-3.5 stroke-[3]" />
-                        {updateTrekMutation.isPending ? 'Updating...' : 'Save Configuration'}
+                        {updateTrekMutation.isPending ? 'Updating...' : 'Save changes'}
                       </>
                     ) : (
                       <>
                         <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                        {createTrekMutation.isPending ? 'Publishing...' : 'Publish Gathering'}
+                        {createTrekMutation.isPending ? 'Publishing...' : 'Publish gathering'}
                       </>
                     )}
-                  </button>
+                  </motion.button>
                 </form>
               </div>
             </motion.div>
