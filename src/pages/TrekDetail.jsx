@@ -74,7 +74,7 @@ const joinRequestMutation = useMutation({
     alert(
       err?.response?.data?.detail ||
       err?.response?.data?.non_field_errors?.[0] ||
-      'Failed to send join request.'
+      'Group already filled.'
     );
   },
 });
