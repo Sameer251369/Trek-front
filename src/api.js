@@ -42,11 +42,11 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
+
     // Check for 401 and make sure we haven't retried this specific request yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) {
@@ -60,20 +60,20 @@ api.interceptors.response.use(
 
         const newAccessToken = response.data.access;
         localStorage.setItem('access_token', newAccessToken);
-        
+
         // FIX: Ensure capitalization consistency across Axios headers mapping object
         originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-        
+
         // Retry the original request with the fresh token
         return api(originalRequest);
       } catch (refreshError) {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
-        
+
         // FIX: Halt downstream processing during an active application context redirect
         window.location.href = '/login';
-        return new Promise(() => {}); // Returns an unresolved pending promise to break the loop
+        return new Promise(() => { }); // Returns an unresolved pending promise to break the loop
       }
     }
     return Promise.reject(error);
@@ -156,6 +156,17 @@ export const treksAPI = {
     });
     return response.data;
   },
+  update: async (id, data) => {
+    const isFormData = data instanceof FormData;
+    const options = isFormData ? { headers: { 'Content-Type': undefined } } : {};
+
+    const response = await api.patch(`/treks/${id}/`, data, options);
+    return response.data;
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/treks/${id}/`);
+    return response.data;
+  },
   requestJoin: async (groupId) => {
     const response = await api.post('/treks/requests/', { group: groupId });
     return response.data;
@@ -236,7 +247,7 @@ export const expensesAPI = {
     return response.data;
   },
   delete: async (id) => {
-    const response = await api.delete(`/expenses/${id}/`); 
+    const response = await api.delete(`/expenses/${id}/`);
     return response.data;
   },
   getBalances: async (groupId) => {
@@ -248,6 +259,11 @@ export const expensesAPI = {
 export const usersAPI = {
   getProfile: async (id) => {
     const response = await api.get(`/users/${id}/`);
+    return response.data;
+  },
+
+  listAchievements: async () => {
+    const response = await api.get('/users/achievements/');
     return response.data;
   },
 
@@ -273,7 +289,7 @@ export const usersAPI = {
 
     if (hasNestedFile || removePicture) {
       const formData = new FormData();
-      
+
       if (data.profile) {
         Object.entries(data.profile).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {

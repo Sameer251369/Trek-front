@@ -1,4 +1,4 @@
-import React, { useState, } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -15,7 +15,9 @@ import {
   X,
   AlertCircle,
   Eye,
-  Send
+  Send,
+  CheckCircle2,
+  Undo2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI, authAPI } from '../api';
@@ -37,11 +39,14 @@ export default function TrekDetail() {
     queryFn: () => treksAPI.get(id),
   });
 
-
   const isOrganizer = trek && currentUser && trek.organizer === currentUser.id;
-  const hasAccess =
-  trek?.is_member ||
-  isOrganizer;
+
+  // Determine if user is a group administrator (organizer OR has structural ADMIN role)
+  const isGroupAdmin = isOrganizer || (trek?.members?.some(
+    (member) => member.user === currentUser?.id && member.role === 'ADMIN'
+  ));
+
+  const hasAccess = trek?.is_member || isOrganizer;
 
   // Retrieve join requests if current user is organizer
   const { data: joinRequests = [] } = useQuery({
@@ -61,25 +66,33 @@ export default function TrekDetail() {
       alert(err.response?.data?.[0] || 'Action failed.');
     }
   });
-const joinRequestMutation = useMutation({
-  mutationFn: () => treksAPI.requestJoin(id),
 
-  onSuccess: () => {
-    queryClient.invalidateQueries({
-      queryKey: ['trek', id],
-    });
-  },
+  const joinRequestMutation = useMutation({
+    mutationFn: () => treksAPI.requestJoin(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['trek', id],
+      });
+    },
+    onError: (err) => {
+      alert(
+        err?.response?.data?.detail ||
+        err?.response?.data?.non_field_errors?.[0] ||
+        'Group already filled.'
+      );
+    },
+  });
 
-  onError: (err) => {
-    alert(
-      err?.response?.data?.detail ||
-      err?.response?.data?.non_field_errors?.[0] ||
-      'Group already filled.'
-    );
-  },
-});
-
-
+  // Mutation for updating group completion status
+  const toggleCompletionMutation = useMutation({
+    mutationFn: (newStatus) => treksAPI.update(id, { is_completed: newStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trek', id] });
+    },
+    onError: (err) => {
+      alert(err.response?.data?.detail || 'Failed to update workshop completion status.');
+    }
+  });
 
   if (isLoading) {
     return (
@@ -96,79 +109,79 @@ const joinRequestMutation = useMutation({
       </div>
     );
   }
+
   if (trek && !hasAccess) {
-  return (
-    <div className="max-w-4xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
-      >
+    return (
+      <div className="max-w-4xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
+        >
+          <div className="space-y-4">
+            <div>
+              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
+                {trek.difficulty}
+              </span>
 
-        <div className="space-y-4">
-          <div>
-            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
-              {trek.difficulty}
-            </span>
+              <h1 className="text-3xl font-bold mt-3 text-dark-text">
+                {trek.title}
+              </h1>
 
-            <h1 className="text-3xl font-bold mt-3 text-dark-text">
-              {trek.title}
-            </h1>
+              <p className="text-dark-muted mt-2">
+                {trek.description}
+              </p>
+            </div>
 
-            <p className="text-dark-muted mt-2">
-              {trek.description}
-            </p>
+            <div className="border-t border-white/[0.07] pt-4 space-y-2 text-dark-text">
+              <p>
+                <strong>Organizer:</strong> {trek.organizer_username}
+              </p>
+
+              <p>
+                <strong>Date:</strong>{' '}
+                {new Date(trek.date).toLocaleDateString()}
+              </p>
+
+              <p>
+                <strong>Members:</strong>{' '}
+                {trek.members_count} / {trek.capacity}
+              </p>
+            </div>
+
+            {trek.join_request_status === 'PENDING' ? (
+              <button
+                disabled
+                className="w-full py-3.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-300 font-semibold"
+              >
+                Request Pending
+              </button>
+            ) : trek.join_request_status === 'REJECTED' ? (
+              <button
+                disabled
+                className="w-full py-3.5 rounded-full bg-red-500/10 border border-red-400/20 text-red-300 font-semibold"
+              >
+                Request Rejected
+              </button>
+            ) : (
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => joinRequestMutation.mutate()}
+                disabled={joinRequestMutation.isPending}
+                className="w-full py-3.5 rounded-full bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(232,255,0,0.2)]"
+              >
+                <Send className="w-4 h-4" />
+                {joinRequestMutation.isPending
+                  ? 'Sending Request...'
+                  : 'Request To Join'}
+              </motion.button>
+            )}
           </div>
-
-          <div className="border-t border-white/[0.07] pt-4 space-y-2 text-dark-text">
-            <p>
-              <strong>Organizer:</strong> {trek.organizer_username}
-            </p>
-
-            <p>
-              <strong>Date:</strong>{' '}
-              {new Date(trek.date).toLocaleDateString()}
-            </p>
-
-            <p>
-              <strong>Members:</strong>{' '}
-              {trek.members_count} / {trek.capacity}
-            </p>
-          </div>
-
-          {trek.join_request_status === 'PENDING' ? (
-            <button
-              disabled
-              className="w-full py-3.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-300 font-semibold"
-            >
-              Request Pending
-            </button>
-          ) : trek.join_request_status === 'REJECTED' ? (
-            <button
-              disabled
-              className="w-full py-3.5 rounded-full bg-red-500/10 border border-red-400/20 text-red-300 font-semibold"
-            >
-              Request Rejected
-            </button>
-          ) : (
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={() => joinRequestMutation.mutate()}
-              disabled={joinRequestMutation.isPending}
-              className="w-full py-3.5 rounded-full bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(232,255,0,0.2)]"
-            >
-              <Send className="w-4 h-4" />
-              {joinRequestMutation.isPending
-                ? 'Sending Request...'
-                : 'Request To Join'}
-            </motion.button>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  );
-}
+        </motion.div>
+      </div>
+    );
+  }
 
   const pendingRequests = joinRequests.filter(req => req.status === 'PENDING');
 
@@ -213,6 +226,55 @@ const joinRequestMutation = useMutation({
                 <span>Organizer: {trek.organizer_username}</span>
               </div>
             </div>
+          </div>
+        </motion.div>
+
+        {/* Completion Block */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.02 }}
+          className={`rounded-[1.75rem] border p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)] ${trek.is_completed
+              ? 'bg-green-500/[0.04] border-green-500/20'
+              : 'bg-white/[0.04] border-white/[0.08]'
+            }`}
+        >
+          <h3 className="text-sm font-bold text-dark-text mb-2.5 flex items-center gap-1.5">
+            <CheckCircle2 className={`w-4.5 h-4.5 ${trek.is_completed ? 'text-green-400' : 'text-dark-muted'}`} />
+            <span>Workshop Status</span>
+          </h3>
+
+          <div className="space-y-3">
+            <p className="text-xs text-dark-muted leading-relaxed">
+              {trek.is_completed
+                ? "This workshop has been completed! Active members have received points and unlocked eligible badges."
+                : "This workspace is currently active. Once finished, group administrators can mark it finalized."
+              }
+            </p>
+
+            {isGroupAdmin && (
+              <div className="pt-1">
+                {trek.is_completed ? (
+                  <button
+                    onClick={() => toggleCompletionMutation.mutate(false)}
+                    disabled={toggleCompletionMutation.isPending}
+                    className="w-full py-2 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-dark-text font-semibold text-xs border border-white/[0.08] flex items-center justify-center gap-1.5 transition duration-150"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    <span>{toggleCompletionMutation.isPending ? 'Processing...' : 'Mark as Incomplete'}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => toggleCompletionMutation.mutate(true)}
+                    disabled={toggleCompletionMutation.isPending}
+                    className="w-full py-2 px-4 rounded-full bg-green-500/20 hover:bg-green-500/30 text-green-300 font-bold text-xs border border-green-500/30 flex items-center justify-center gap-1.5 transition duration-150 shadow-[0_4px_12px_rgba(34,197,94,0.1)]"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>{toggleCompletionMutation.isPending ? 'Processing...' : 'Mark Workshop Completed'}</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
 
@@ -299,11 +361,10 @@ const joinRequestMutation = useMutation({
                     <p className="text-[9px] text-dark-muted uppercase font-bold">{member.experience_level}</p>
                   </div>
                 </Link>
-                <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase ${
-                  member.role === 'ADMIN'
+                <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase ${member.role === 'ADMIN'
                     ? 'border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
                     : 'border-white/10 bg-white/[0.03] text-dark-muted'
-                }`}>
+                  }`}>
                   {member.role}
                 </span>
               </div>

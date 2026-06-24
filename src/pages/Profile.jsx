@@ -35,6 +35,12 @@ export default function Profile() {
     queryFn: () => usersAPI.getProfile(id),
   });
 
+  // Dynamically fetch all defined achievements from the system
+  const { data: globalAchievements = [], isLoading: isLoadingAchievements } = useQuery({
+    queryKey: ['achievements'],
+    queryFn: usersAPI.listAchievements,
+  });
+
   // Keep state synced when userProfile changes
   useEffect(() => {
     if (userProfile?.profile) {
@@ -167,13 +173,6 @@ export default function Profile() {
   const avatarUrl = removePicture
     ? null
     : profilePicturePreview || userProfile.profile?.profile_picture_url;
-
-  const globalAchievements = [
-    { name: "First Trek", desc: "Completed your first trekking expedition.", icon: "Compass" },
-    { name: "Mountain Explorer", desc: "Completed 5 trekking expeditions.", icon: "Compass" },
-    { name: "Night Trekker", desc: "Successfully survived a night-hiking expedition.", icon: "Compass" },
-    { name: "Summit Legend", desc: "Hiked over 100km or completed 10+ expeditions.", icon: "Compass" }
-  ];
 
   const earnedAchievementNames = (userProfile.achievements || []).map(ach => ach.achievement?.name);
   const workshopsCreated = userProfile.profile?.workshops_created_count || 0;
@@ -475,41 +474,50 @@ export default function Profile() {
               <span>Achievements ({userProfile.achievements?.length || 0})</span>
             </h2>
 
-            <div className="space-y-4">
-              {globalAchievements.map((ach, index) => {
-                const isEarned = earnedAchievementNames.includes(ach.name);
-                return (
-                  <motion.div
-                    key={ach.name}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.06 }}
-                    className={`p-4 rounded-2xl border flex gap-3.5 transition duration-300 relative ${
-                      isEarned
-                        ? 'border-primary/20 bg-primary/[0.06] text-dark-text shadow-sm shadow-primary/5'
-                        : 'border-white/[0.06] bg-white/[0.02] text-dark-muted'
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border shrink-0 ${
-                      isEarned
-                        ? 'bg-primary/10 border-primary/40 text-primary'
-                        : 'bg-white/[0.03] border-white/[0.06] text-dark-muted/40'
-                    }`}>
-                      {isEarned ? <Sparkles className="w-6 h-6" /> : <Lock className="w-5 h-5" />}
-                    </div>
+            {isLoadingAchievements ? (
+              <div className="flex items-center justify-center py-6">
+                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {globalAchievements.map((ach, index) => {
+                  const isEarned = earnedAchievementNames.includes(ach.name);
+                  return (
+                    <motion.div
+                      key={ach.id || ach.name}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.06 }}
+                      className={`p-4 rounded-2xl border flex gap-3.5 transition duration-300 relative ${isEarned
+                          ? 'border-primary/20 bg-primary/[0.06] text-dark-text shadow-sm shadow-primary/5'
+                          : 'border-white/[0.06] bg-white/[0.02] text-dark-muted'
+                        }`}
+                    >
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border shrink-0 ${isEarned
+                          ? 'bg-primary/10 border-primary/40 text-primary'
+                          : 'bg-white/[0.03] border-white/[0.06] text-dark-muted/40'
+                        }`}>
+                        {isEarned ? <Sparkles className="w-6 h-6" /> : <Lock className="w-5 h-5" />}
+                      </div>
 
-                    <div className="space-y-0.5 text-left">
-                      <h3 className={`font-bold text-sm leading-tight ${isEarned ? 'text-dark-text' : 'text-dark-muted'}`}>
-                        {ach.name}
-                      </h3>
-                      <p className="text-xs text-dark-muted leading-relaxed">
-                        {ach.desc}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                      <div className="space-y-0.5 text-left">
+                        <h3 className={`font-bold text-sm leading-tight ${isEarned ? 'text-dark-text' : 'text-dark-muted'}`}>
+                          {ach.name}
+                        </h3>
+                        <p className="text-xs text-dark-muted leading-relaxed">
+                          {ach.description || ach.desc}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+                {globalAchievements.length === 0 && (
+                  <div className="text-xs text-dark-muted text-center py-4">
+                    No achievements available in the system.
+                  </div>
+                )}
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
