@@ -9,10 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI } from '../api';
 
 const DIFFICULTY_STYLES = {
-  EASY:     'border-green-400/30  bg-green-400/10  text-green-300',
+  EASY: 'border-green-400/30  bg-green-400/10  text-green-300',
   MODERATE: 'border-yellow-400/30 bg-yellow-400/10 text-yellow-300',
-  HARD:     'border-orange-400/30 bg-orange-400/10 text-orange-300',
-  EXTREME:  'border-red-400/30     bg-red-400/10     text-red-300',
+  HARD: 'border-orange-400/30 bg-orange-400/10 text-orange-300',
+  EXTREME: 'border-red-400/30     bg-red-400/10     text-red-300',
 };
 
 const cardVariants = {
@@ -327,11 +327,10 @@ export default function Dashboard() {
             <button
               key={diff}
               onClick={() => setSelectedDifficulty(diff)}
-              className={`px-3.5 h-full rounded-full text-[11px] font-bold tracking-wide uppercase transition-colors duration-200 focus:outline-none ${
-                selectedDifficulty === diff
+              className={`px-3.5 h-full rounded-full text-[11px] font-bold tracking-wide uppercase transition-colors duration-200 focus:outline-none ${selectedDifficulty === diff
                   ? 'bg-primary text-dark-bg'
                   : 'text-dark-muted hover:text-dark-text'
-              }`}
+                }`}
             >
               {diff === 'MODERATE' ? 'MOD' : diff}
             </button>
@@ -426,13 +425,13 @@ export default function Dashboard() {
 
               {trek.destination_image_url ? (
                 <div className="h-56 w-full overflow-hidden relative">
-               <img
-  src={trek.destination_image_url}
-  alt={trek.destination || trek.title}
-  className="w-full h-full object-cover transition-transform duration-500"
-  loading="eager"
-  decoding="async"
-/>
+                  <img
+                    src={trek.destination_image_url}
+                    alt={trek.destination || trek.title}
+                    className="w-full h-full object-cover transition-transform duration-500"
+                    loading="eager"
+                    decoding="async"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                 </div>
               ) : (
@@ -709,11 +708,10 @@ export default function Dashboard() {
                           key={diff}
                           type="button"
                           onClick={() => setNewTrekDiff(diff)}
-                          className={`flex-1 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-wide transition-colors duration-200 focus:outline-none ${
-                            newTrekDiff === diff
+                          className={`flex-1 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-wide transition-colors duration-200 focus:outline-none ${newTrekDiff === diff
                               ? 'bg-primary text-dark-bg'
                               : 'text-dark-muted hover:text-dark-text'
-                          }`}
+                            }`}
                         >
                           {diff}
                         </button>
