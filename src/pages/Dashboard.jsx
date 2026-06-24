@@ -25,6 +25,15 @@ const cardVariants = {
   }),
 };
 
+// Public directory images for background rotation animation loop
+const RALLY_IMAGES = [
+  '/akif-waseem-mnSH1Tfd-Yc-unsplash.jpg',
+  '/gentrit-sylejmani-JjUyjE-oEbM-unsplash.jpg',
+  '/jennie-clavel-G0zoYDFvUXQ-unsplash.jpg',
+  '/logan-voss-hT0nO6d2QVE-unsplash.jpg',
+  '/paolo-candelo-8tXukRrs7yk-unsplash.jpg'
+];
+
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -53,6 +62,17 @@ export default function Dashboard() {
 
   // Clipboard Share Feedback State
   const [copiedTrekId, setCopiedTrekId] = useState(null);
+
+  // Background Slider Index State tracker
+  const [currentImgIndex, setCurrentImgIndex] = useState(0);
+
+  // Background Image Rotator Logic
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImgIndex((prevIndex) => (prevIndex + 1) % RALLY_IMAGES.length);
+    }, 4000); // Transitions every 4 seconds
+    return () => clearInterval(timer);
+  }, []);
 
   // Debounce search term entry
   useEffect(() => {
@@ -234,26 +254,45 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto w-full">
 
-      {/* ── Hero Banner ── */}
+      {/* ── Hero Banner with Fluid Auto-Carousel Backing ── */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative py-14 px-8 sm:px-14 flex flex-col md:flex-row md:items-center justify-between gap-8 rounded-[2rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.35)] overflow-hidden"
+        className="relative py-14 px-8 sm:px-14 flex flex-col md:flex-row md:items-center justify-between gap-8 rounded-[2rem] bg-[#0d0d0d] border border-white/[0.08] shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden"
       >
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-56 h-56 bg-primary/[0.04] rounded-full blur-3xl pointer-events-none" />
+        {/* Dynamic Image Underlay Mask Structure */}
+        <div className="absolute inset-0 z-0">
+          <AnimatePresence mode="popLayout">
+            <motion.img
+              key={currentImgIndex}
+              src={RALLY_IMAGES[currentImgIndex]}
+              alt="Network Background"
+              initial={{ opacity: 0, scale: 1.03 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.2, ease: 'easeInOut' }}
+              className="w-full h-full object-cover"
+            />
+          </AnimatePresence>
+          {/* Gradient Tint Mask Layer to match theme properties and elevate typography readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-black/30 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        </div>
+
+        <div className="absolute -top-24 -right-24 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none z-10" />
+        <div className="absolute bottom-0 left-0 w-56 h-56 bg-primary/[0.04] rounded-full blur-3xl pointer-events-none z-10" />
 
         <div className="space-y-3 max-w-xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             <span className="text-primary font-semibold text-[11px] uppercase tracking-[0.2em]">RallyGrid Network</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-dark-text leading-[1.05]">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white leading-[1.05] drop-shadow-md">
             Gather the right<br />
             <span className="text-primary">people</span>
           </h1>
-          <p className="text-dark-muted text-sm sm:text-base leading-relaxed max-w-sm">
+          <p className="text-dark-muted text-sm sm:text-base leading-relaxed max-w-sm drop-shadow-sm font-medium text-gray-300">
             Create cricket squads, parties, protests, meetups, workshops — and every kind of live event.
           </p>
         </div>
@@ -261,7 +300,7 @@ export default function Dashboard() {
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="relative z-10 shrink-0 flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-dark-bg font-bold px-7 py-4 rounded-full text-sm transition-colors duration-200 shadow-[0_10px_30px_rgba(232,255,0,0.25)] focus:outline-none"
+          className="relative z-10 shrink-0 flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-dark-bg font-bold px-7 py-4 rounded-full text-sm transition-colors duration-200 shadow-[0_10px_30px_rgba(232,255,0,0.35)] focus:outline-none"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
           Create Gathering
@@ -675,30 +714,28 @@ export default function Dashboard() {
                               : 'text-dark-muted hover:text-dark-text'
                           }`}
                         >
-                          {diff === 'MODERATE' ? 'MOD' : diff}
+                          {diff}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    type="submit"
-                    disabled={createTrekMutation.isPending || updateTrekMutation.isPending}
-                    className="w-full py-4 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-sm transition-colors duration-200 mt-2 flex items-center justify-center gap-2 focus:outline-none disabled:opacity-50"
-                  >
-                    {editingTrekId ? (
-                      <>
-                        <Edit2 className="w-3.5 h-3.5 stroke-[3]" />
-                        {updateTrekMutation.isPending ? 'Updating...' : 'Save changes'}
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                        {createTrekMutation.isPending ? 'Publishing...' : 'Publish gathering'}
-                      </>
-                    )}
-                  </motion.button>
+                  <div className="pt-3 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCloseModal}
+                      className="flex-1 py-3.5 rounded-full border border-white/10 text-dark-text font-bold text-xs uppercase tracking-wide hover:bg-white/[0.04] transition-colors focus:outline-none"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createTrekMutation.isPending || updateTrekMutation.isPending}
+                      className="flex-1 py-3.5 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-xs uppercase tracking-wide transition-colors focus:outline-none disabled:opacity-40"
+                    >
+                      {createTrekMutation.isPending || updateTrekMutation.isPending ? 'Saving...' : editingTrekId ? 'Save Changes' : 'Launch Gathering'}
+                    </button>
+                  </div>
                 </form>
               </div>
             </motion.div>
