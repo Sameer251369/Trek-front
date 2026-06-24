@@ -425,13 +425,14 @@ export default function Dashboard() {
               </div>
 
               {trek.destination_image_url ? (
-                <div className="h-44 w-full overflow-hidden relative">
-                  <img
-                    src={trek.destination_image_url}
-                    alt={trek.destination || trek.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
+                <div className="h-56 w-full overflow-hidden relative">
+               <img
+  src={trek.destination_image_url}
+  alt={trek.destination || trek.title}
+  className="w-full h-full object-cover transition-transform duration-500"
+  loading="eager"
+  decoding="async"
+/>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                 </div>
               ) : (
