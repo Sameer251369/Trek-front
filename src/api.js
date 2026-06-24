@@ -192,6 +192,13 @@ export const chatAPI = {
     });
     return response.data;
   },
+  uploadAttachment: async (groupId, formData) => {
+    formData.append('group', groupId);
+    const response = await api.post('/chat/upload/', formData, {
+      headers: { 'Content-Type': undefined },
+    });
+    return response.data;
+  },
   getWebSocketUrl: (groupId) => {
     const token = localStorage.getItem("access_token");
     return token

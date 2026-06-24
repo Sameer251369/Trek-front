@@ -8,16 +8,16 @@ export default {
     extend: {
       colors: {
         dark: {
-          bg: '#0F172A',      // Slate 900
-          card: '#1E293B',    // Slate 800
-          border: '#334155',  // Slate 700
-          text: '#F8FAFC',    // Slate 50
-          muted: '#94A3B8',   // Slate 400
+          bg: '#030014',
+          card: '#090716',
+          border: '#201b35',
+          text: '#f3f4f6',
+          muted: '#828095',
         },
         primary: {
-          DEFAULT: '#10B981', // Emerald 500
-          hover: '#059669',   // Emerald 600
-          light: '#34D399',   // Emerald 400
+          DEFAULT: '#8b5cf6',
+          hover: '#7c3aed',
+          light: '#c084fc',
         },
       },
       fontFamily: {
