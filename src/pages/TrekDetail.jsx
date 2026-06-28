@@ -540,9 +540,66 @@ export default function TrekDetail() {
           transition={{ duration: 0.25 }}
           className="relative rounded-[1.25rem] bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.22)]"
         >
+          <div className="absolute right-4 top-3 z-20" ref={workspaceMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
+              className="h-8 w-8 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text flex items-center justify-center transition duration-150"
+              title="Gathering actions"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            <AnimatePresence>
+              {isWorkspaceMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                  transition={{ duration: 0.16 }}
+                  className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50"
+                >
+                  <button
+                    type="button"
+                    onClick={handleShareGathering}
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Share2 className="w-3.5 h-3.5" />
+                      {copiedShare ? 'Link Copied' : 'Share Gathering'}
+                    </span>
+                    {copiedShare && <Check className="w-3.5 h-3.5 text-green-400" />}
+                  </button>
+
+                  {isGroupAdmin && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={openEditModal}
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Edit Gathering
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteGathering}
+                        disabled={deleteGatheringMutation.isPending}
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete Gathering'}
+                      </button>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pr-10">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Workspace</p>
                   {trek.is_private && (
@@ -554,62 +611,6 @@ export default function TrekDetail() {
                 </div>
                 <div className="flex items-center gap-2 min-w-0">
                   <h3 className="text-base sm:text-lg font-bold text-dark-text truncate">{trek.title}</h3>
-                  <div className="relative shrink-0" ref={workspaceMenuRef}>
-                    <button
-                      type="button"
-                      onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
-                      className="h-8 w-8 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text flex items-center justify-center transition duration-150"
-                      title="Gathering actions"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    <AnimatePresence>
-                      {isWorkspaceMenuOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                          transition={{ duration: 0.16 }}
-                          className="absolute left-0 bottom-full mb-2 w-48 rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50"
-                        >
-                          <button
-                            type="button"
-                            onClick={handleShareGathering}
-                            className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
-                          >
-                            <span className="flex items-center gap-2">
-                              <Share2 className="w-3.5 h-3.5" />
-                              {copiedShare ? 'Link Copied' : 'Share Gathering'}
-                            </span>
-                            {copiedShare && <Check className="w-3.5 h-3.5 text-green-400" />}
-                          </button>
-
-                          {isGroupAdmin && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={openEditModal}
-                                className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                                Edit Gathering
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleDeleteGathering}
-                                disabled={deleteGatheringMutation.isPending}
-                                className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                {deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete Gathering'}
-                              </button>
-                            </>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
                 </div>
               </div>
             </div>
