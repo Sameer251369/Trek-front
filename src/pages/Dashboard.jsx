@@ -27,8 +27,8 @@ const cardVariants = {
 
 // Public directory images for background rotation animation loop
 const RALLY_IMAGES = [
-   '/ChatGPT Image Jun 28, 2026, 10_04_08 PM.png',
-  '/paolo-candelo-8tXukRrs7yk-unsplash.jpg'
+  
+  '/Gemini_Generated_Image_dhr4pmdhr4pmdhr4 (1).png'
 ];
 
 export default function Dashboard() {
