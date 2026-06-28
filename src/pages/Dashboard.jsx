@@ -28,7 +28,8 @@ const cardVariants = {
 // Public directory images for background rotation animation loop
 const RALLY_IMAGES = [
   
-  '/Gemini_Generated_Image_dhr4pmdhr4pmdhr4 (1).png'
+  '/Gemini_Generated_Image_dhr4pmdhr4pmdhr4 (1).png',
+  '/Gemini_Generated_Image_hnr2hzhnr2hzhnr2.png'
 ];
 
 export default function Dashboard() {
