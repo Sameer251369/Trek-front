@@ -588,6 +588,51 @@ export default function TrekDetail() {
 
       {/* Main Workspace Area (Tabs) */}
       <div className="lg:col-span-3 space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[1.25rem] bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] px-4 py-3"
+        >
+          <div className="min-w-0">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Workspace</p>
+            <h3 className="text-sm sm:text-base font-bold text-dark-text truncate">{trek.title}</h3>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleShareGathering}
+              className="px-4 py-2.5 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-xs flex items-center justify-center gap-1.5 transition duration-150"
+            >
+              {copiedShare ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+              <span>{copiedShare ? 'Copied' : 'Share Gathering'}</span>
+            </button>
+
+            {isGroupAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={openEditModal}
+                  className="px-4 py-2.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-dark-text font-semibold text-xs border border-white/[0.08] flex items-center justify-center gap-1.5 transition duration-150"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteGathering}
+                  disabled={deleteGatheringMutation.isPending}
+                  className="px-4 py-2.5 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-300 font-semibold text-xs border border-red-500/20 flex items-center justify-center gap-1.5 transition duration-150 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete'}</span>
+                </button>
+              </>
+            )}
+          </div>
+        </motion.div>
+
         {/* Workspace Tab Bar */}
         <div className="flex rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] p-1.5 gap-1 overflow-x-auto">
           {tabs.map((tab) => {
