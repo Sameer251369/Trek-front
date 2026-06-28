@@ -17,7 +17,8 @@ import {
   Eye,
   Send,
   CheckCircle2,
-  Undo2
+  Undo2,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI, authAPI } from '../api';
@@ -32,6 +33,8 @@ export default function TrekDetail() {
   const queryClient = useQueryClient();
   const currentUser = authAPI.getCurrentUser();
   const [activeTab, setActiveTab] = useState('chat');
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
 
   // Queries
   const { data: trek, isLoading, isError } = useQuery({
@@ -83,6 +86,46 @@ export default function TrekDetail() {
     },
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: () => treksAPI.checkout(id, `${window.location.origin}/trek/${id}/`),
+    onSuccess: (data) => {
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    },
+    onError: (err) => {
+      alert(err.response?.data?.detail || 'Failed to initiate Stripe checkout.');
+    }
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: (sessionId) => treksAPI.confirmPayment(id, sessionId),
+    onSuccess: () => {
+      setVerifyingPayment(false);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      queryClient.invalidateQueries({ queryKey: ['trek', id] });
+    },
+    onError: (err) => {
+      setVerifyingPayment(false);
+      setPaymentError(err.response?.data?.detail || 'Payment verification failed.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  });
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('payment_status');
+    const sessionId = params.get('session_id');
+
+    if (paymentStatus === 'success' && sessionId) {
+      setVerifyingPayment(true);
+      confirmPaymentMutation.mutate(sessionId);
+    } else if (paymentStatus === 'cancel') {
+      setPaymentError('Payment was cancelled. You must pay to join this gathering.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [id]);
+
   // Mutation for updating group completion status
   const toggleCompletionMutation = useMutation({
     mutationFn: (newStatus) => treksAPI.update(id, { is_completed: newStatus }),
@@ -94,10 +137,15 @@ export default function TrekDetail() {
     }
   });
 
-  if (isLoading) {
+  if (isLoading || verifyingPayment) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
         <div className="w-9 h-9 border-[3px] border-primary/30 border-t-primary rounded-full animate-spin" />
+        {verifyingPayment && (
+          <p className="text-xs font-bold uppercase tracking-widest text-primary animate-pulse">
+            Verifying payment with Stripe...
+          </p>
+        )}
       </div>
     );
   }
@@ -121,9 +169,17 @@ export default function TrekDetail() {
         >
           <div className="space-y-4">
             <div>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
-                {trek.difficulty}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
+                  {trek.difficulty}
+                </span>
+                {trek.is_private && (
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Private</span>
+                  </span>
+                )}
+              </div>
 
               <h1 className="text-3xl font-bold mt-3 text-dark-text">
                 {trek.title}
@@ -150,6 +206,13 @@ export default function TrekDetail() {
               </p>
             </div>
 
+            {paymentError && (
+              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
             {trek.join_request_status === 'PENDING' ? (
               <button
                 disabled
@@ -164,6 +227,18 @@ export default function TrekDetail() {
               >
                 Request Rejected
               </button>
+            ) : trek.capacity > 20 ? (
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => checkoutMutation.mutate()}
+                disabled={checkoutMutation.isPending}
+                className="w-full py-3.5 rounded-full bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(232,255,0,0.2)]"
+              >
+                <Send className="w-4 h-4" />
+                {checkoutMutation.isPending
+                  ? 'Redirecting to Stripe...'
+                  : 'Pay $10 to Join'}
+              </motion.button>
             ) : (
               <motion.button
                 whileTap={{ scale: 0.98 }}
@@ -205,9 +280,17 @@ export default function TrekDetail() {
         >
           <div className="space-y-4">
             <div>
-              <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
-                {trek.difficulty}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
+                  {trek.difficulty}
+                </span>
+                {trek.is_private && (
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    <span>Private</span>
+                  </span>
+                )}
+              </div>
               <h2 className="text-xl font-bold text-dark-text tracking-tight mt-2">{trek.title}</h2>
               <p className="text-xs text-dark-muted mt-1 leading-relaxed">{trek.description}</p>
             </div>

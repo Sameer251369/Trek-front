@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Calendar, Users, Search, AlertTriangle, Plus, X,
-  ArrowRight, User, Upload, Network, Edit2, Trash2, Share2, Check, MoreVertical
+  ArrowRight, User, Upload, Network, Edit2, Trash2, Share2, Check, MoreVertical, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI } from '../api';
@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [newTrekDestination, setNewTrekDestination] = useState('');
   const [newTrekImage, setNewTrekImage] = useState(null);
   const [newTrekImagePreview, setNewTrekImagePreview] = useState(null);
+  const [newTrekIsPrivate, setNewTrekIsPrivate] = useState(false);
   const [formError, setFormError] = useState(null);
 
   // UI Dropdown Menu Management State
@@ -149,6 +150,18 @@ export default function Dashboard() {
     },
   });
 
+  const checkoutMutation = useMutation({
+    mutationFn: ({ id, redirectUrl }) => treksAPI.checkout(id, redirectUrl),
+    onSuccess: (data) => {
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      }
+    },
+    onError: (err) => {
+      alert(err.response?.data?.detail || 'Failed to initiate Stripe checkout.');
+    }
+  });
+
   const resetForm = () => {
     setEditingTrekId(null);
     setNewTrekTitle('');
@@ -158,6 +171,7 @@ export default function Dashboard() {
     setNewTrekDiff('MODERATE');
     setNewTrekDestination('');
     setNewTrekImage(null);
+    setNewTrekIsPrivate(false);
 
     if (newTrekImagePreview) {
       URL.revokeObjectURL(newTrekImagePreview);
@@ -179,6 +193,7 @@ export default function Dashboard() {
     setNewTrekDate(trek.date ? trek.date.split('T')[0] : '');
     setNewTrekCapacity(String(trek.capacity || 10));
     setNewTrekDiff(trek.difficulty || 'MODERATE');
+    setNewTrekIsPrivate(trek.is_private || false);
     if (trek.destination_image_url) {
       setNewTrekImagePreview(trek.destination_image_url);
     }
@@ -239,6 +254,7 @@ export default function Dashboard() {
     formData.append('date', newTrekDate);
     formData.append('capacity', newTrekCapacity);
     formData.append('difficulty', newTrekDiff);
+    formData.append('is_private', newTrekIsPrivate);
 
     if (newTrekImage) {
       formData.append('destination_image', newTrekImage);
@@ -443,9 +459,17 @@ export default function Dashboard() {
               <div className="p-5 flex flex-col flex-1 justify-between gap-5">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wide ${DIFFICULTY_STYLES[trek.difficulty] || 'border-white/10 text-dark-muted'}`}>
-                      {trek.difficulty}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wide ${DIFFICULTY_STYLES[trek.difficulty] || 'border-white/10 text-dark-muted'}`}>
+                        {trek.difficulty}
+                      </span>
+                      {trek.is_private && (
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" />
+                          <span>Private</span>
+                        </span>
+                      )}
+                    </div>
                     <span className="text-[11px] text-dark-muted font-medium flex items-center gap-1.5">
                       <Calendar className="w-3 h-3 text-primary shrink-0" />
                       {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -520,6 +544,14 @@ export default function Dashboard() {
                         className="w-full py-2.5 rounded-full bg-transparent border border-red-500/10 text-red-500/50 font-bold text-[11px] uppercase tracking-wide cursor-not-allowed"
                       >
                         Request Rejected
+                      </button>
+                    ) : trek.capacity > 20 ? (
+                      <button
+                        onClick={() => checkoutMutation.mutate({ id: trek.id, redirectUrl: `${window.location.origin}/trek/${trek.id}/` })}
+                        disabled={checkoutMutation.isPending}
+                        className="w-full py-2.5 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-[11px] uppercase tracking-wide transition-colors duration-200 focus:outline-none disabled:opacity-50 flex items-center justify-center gap-1"
+                      >
+                        {checkoutMutation.isPending && checkoutMutation.variables?.id === trek.id ? 'Redirecting...' : 'Pay $10 to Join'}
                       </button>
                     ) : (
                       <button
@@ -696,6 +728,19 @@ export default function Dashboard() {
                         className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text text-sm focus:outline-none focus:border-primary/50 transition-colors"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 px-2 py-1">
+                    <input
+                      id="trek-is-private"
+                      type="checkbox"
+                      checked={newTrekIsPrivate}
+                      onChange={(e) => setNewTrekIsPrivate(e.target.checked)}
+                      className="rounded border-white/[0.08] bg-white/[0.04] text-primary focus:ring-primary/50 w-4 h-4 cursor-pointer"
+                    />
+                    <label htmlFor="trek-is-private" className="text-xs font-semibold text-dark-muted cursor-pointer select-none">
+                      Make gathering private (hidden from public dashboard lists)
+                    </label>
                   </div>
 
                   <div>

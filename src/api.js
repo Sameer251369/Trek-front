@@ -187,6 +187,14 @@ export const treksAPI = {
     const response = await api.delete(`/treks/checkpoints/${id}/`);
     return response.data;
   },
+  checkout: async (id, redirectUrl) => {
+    const response = await api.post(`/treks/${id}/checkout/`, { redirect_url: redirectUrl });
+    return response.data;
+  },
+  confirmPayment: async (id, sessionId) => {
+    const response = await api.post(`/treks/${id}/confirm-payment/`, { session_id: sessionId });
+    return response.data;
+  },
 };
 
 export const chatAPI = {
