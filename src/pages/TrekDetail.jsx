@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   MessageSquare,
@@ -18,7 +18,11 @@ import {
   Send,
   CheckCircle2,
   Undo2,
-  Lock
+  Lock,
+  Share2,
+  Edit2,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { treksAPI, authAPI } from '../api';
@@ -30,11 +34,16 @@ import EmergencyTab from '../components/EmergencyTab';
 
 export default function TrekDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const currentUser = authAPI.getCurrentUser();
   const [activeTab, setActiveTab] = useState('chat');
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [editError, setEditError] = useState(null);
 
   // Queries
   const { data: trek, isLoading, isError } = useQuery({
@@ -45,7 +54,7 @@ export default function TrekDetail() {
   const isOrganizer = trek && currentUser && trek.organizer === currentUser.id;
 
   // Determine if user is a group administrator (organizer OR has structural ADMIN role)
-  const isGroupAdmin = isOrganizer || (trek?.members?.some(
+  const isGroupAdmin = trek?.is_group_admin || isOrganizer || (trek?.members?.some(
     (member) => member.user === currentUser?.id && member.role === 'ADMIN'
   ));
 
@@ -112,6 +121,30 @@ export default function TrekDetail() {
     }
   });
 
+  const updateGatheringMutation = useMutation({
+    mutationFn: (formData) => treksAPI.update(id, formData),
+    onSuccess: () => {
+      setIsEditOpen(false);
+      setEditError(null);
+      queryClient.invalidateQueries({ queryKey: ['trek', id] });
+      queryClient.invalidateQueries({ queryKey: ['treks'] });
+    },
+    onError: (err) => {
+      setEditError(err.response?.data?.detail || 'Failed to update gathering.');
+    }
+  });
+
+  const deleteGatheringMutation = useMutation({
+    mutationFn: () => treksAPI.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['treks'] });
+      navigate('/');
+    },
+    onError: (err) => {
+      alert(err.response?.data?.detail || 'Failed to delete gathering.');
+    }
+  });
+
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment_status');
@@ -136,6 +169,53 @@ export default function TrekDetail() {
       alert(err.response?.data?.detail || 'Failed to update workshop completion status.');
     }
   });
+
+  const handleShareGathering = async () => {
+    const url = `${window.location.origin}/trek/${id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const el = document.createElement('input');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 1800);
+  };
+
+  const openEditModal = () => {
+    setEditForm({
+      title: trek.title || '',
+      description: trek.description || '',
+      destination: trek.destination || '',
+      date: trek.date ? trek.date.split('T')[0] : '',
+      capacity: String(trek.capacity || 2),
+      difficulty: trek.difficulty || 'MODERATE',
+      is_private: !!trek.is_private,
+    });
+    setEditError(null);
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault();
+    setEditError(null);
+
+    const formData = new FormData();
+    Object.entries(editForm).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+    updateGatheringMutation.mutate(formData);
+  };
+
+  const handleDeleteGathering = () => {
+    if (window.confirm('Delete this gathering permanently? This cannot be undone.')) {
+      deleteGatheringMutation.mutate();
+    }
+  };
 
   if (isLoading || verifyingPayment) {
     return (
@@ -251,6 +331,45 @@ export default function TrekDetail() {
                   ? 'Sending Request...'
                   : 'Request To Join'}
               </motion.button>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Workspace Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.01 }}
+          className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
+        >
+          <h3 className="text-sm font-bold text-dark-text mb-3">Gathering Actions</h3>
+          <div className="space-y-2">
+            <button
+              onClick={handleShareGathering}
+              className="w-full py-2.5 px-4 rounded-full bg-primary text-dark-bg font-bold text-xs flex items-center justify-center gap-1.5 transition duration-150"
+            >
+              {copiedShare ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+              <span>{copiedShare ? 'Link Copied' : 'Share Gathering'}</span>
+            </button>
+
+            {isGroupAdmin && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={openEditModal}
+                  className="py-2 px-3 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-dark-text font-semibold text-xs border border-white/[0.08] flex items-center justify-center gap-1.5 transition duration-150"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={handleDeleteGathering}
+                  disabled={deleteGatheringMutation.isPending}
+                  className="py-2 px-3 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-300 font-semibold text-xs border border-red-500/20 flex items-center justify-center gap-1.5 transition duration-150 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete'}</span>
+                </button>
+              </div>
             )}
           </div>
         </motion.div>
@@ -380,9 +499,20 @@ export default function TrekDetail() {
                   <div className="flex items-center justify-between gap-2">
                     <Link
                       to={`/profile/${req.user}`}
-                      className="flex items-center gap-1.5 group"
+                      className="flex items-center gap-2 group min-w-0"
                       title="View profile"
                     >
+                      {req.profile_picture_url ? (
+                        <img
+                          src={req.profile_picture_url}
+                          alt={req.username}
+                          className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-primary/10 ring-1 ring-white/10 text-primary flex items-center justify-center font-bold uppercase shrink-0">
+                          {req.username ? req.username[0] : '?'}
+                        </div>
+                      )}
                       <div>
                         <p className="font-bold text-dark-text group-hover:text-primary transition duration-150">
                           {req.username}
@@ -499,6 +629,114 @@ export default function TrekDetail() {
             {activeTab === 'expenses' && <ExpenseTab trekId={id} members={trek.members} />}
             {activeTab === 'emergency' && <EmergencyTab trekId={id} trek={trek} />}
           </motion.div>
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isEditOpen && editForm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+                onClick={() => setIsEditOpen(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.98 }}
+                className="w-full max-w-lg z-10 bg-[#0c0c0c]/95 border border-white/[0.08] rounded-[1.75rem] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h2 className="text-lg font-bold text-dark-text">Edit gathering</h2>
+                    <p className="text-xs text-dark-muted mt-1">Admins can update workspace settings.</p>
+                  </div>
+                  <button onClick={() => setIsEditOpen(false)} className="p-2 rounded-full bg-white/[0.04] text-dark-muted hover:text-dark-text">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {editError && (
+                  <div className="mb-4 flex items-center gap-2 p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    {editError}
+                  </div>
+                )}
+
+                <form onSubmit={handleEditSubmit} className="space-y-4 text-sm">
+                  <input
+                    value={editForm.title}
+                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                    placeholder="Gathering title"
+                    required
+                    className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
+                  />
+                  <input
+                    value={editForm.destination}
+                    onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
+                    placeholder="Location"
+                    className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
+                  />
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    placeholder="Details"
+                    required
+                    rows="3"
+                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50 resize-none"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="date"
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
+                    />
+                    <input
+                      type="number"
+                      min="2"
+                      max="100"
+                      value={editForm.capacity}
+                      onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })}
+                      required
+                      className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <div className="flex rounded-full bg-white/[0.04] border border-white/[0.08] p-1 gap-1">
+                    {['EASY', 'MODERATE', 'HARD', 'EXTREME'].map((diff) => (
+                      <button
+                        key={diff}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, difficulty: diff })}
+                        className={`flex-1 py-2 rounded-full font-bold text-[10px] ${editForm.difficulty === diff ? 'bg-primary text-dark-bg' : 'text-dark-muted'}`}
+                      >
+                        {diff === 'MODERATE' ? 'MOD' : diff}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-dark-muted font-semibold px-2">
+                    <input
+                      type="checkbox"
+                      checked={editForm.is_private}
+                      onChange={(e) => setEditForm({ ...editForm, is_private: e.target.checked })}
+                      className="w-4 h-4"
+                    />
+                    Private gathering
+                  </label>
+                  <div className="flex gap-3 pt-2">
+                    <button type="button" onClick={() => setIsEditOpen(false)} className="flex-1 py-3 rounded-full border border-white/10 text-dark-text font-bold text-xs">
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={updateGatheringMutation.isPending} className="flex-1 py-3 rounded-full bg-primary text-dark-bg font-bold text-xs disabled:opacity-50">
+                      {updateGatheringMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          )}
         </AnimatePresence>
       </div>
     </div>

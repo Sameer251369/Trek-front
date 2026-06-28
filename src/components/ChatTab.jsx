@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Send, MapPin, Paperclip, AlertCircle, Info, Sparkles } from 'lucide-react';
-import { chatAPI, authAPI } from '../api';
+import { Send, MapPin, Paperclip, Info, Image as ImageIcon, X } from 'lucide-react';
+import { chatAPI, authAPI, fixMediaUrl } from '../api';
 
 // Merge incoming messages into existing state by id instead of replacing the
 // array outright. This is critical: if the backend paginates listMessages
@@ -27,10 +27,13 @@ export default function ChatTab({ trekId, members }) {
   const [inputVal, setInputVal] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
   const [uploadUrl, setUploadUrl] = useState('');
+  const [uploadName, setUploadName] = useState('');
+  const [uploadType, setUploadType] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
   const wsRef = useRef(null);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Load message logs from REST on mount
   const { data: initialMessages = [] } = useQuery({
@@ -152,14 +155,15 @@ export default function ChatTab({ trekId, members }) {
     e.preventDefault();
     if (!inputVal.trim() && !uploadUrl) return;
 
-    const msgType = uploadUrl ? 'DOCUMENT' : 'TEXT';
-    const textContent = uploadUrl ? `Shared a file: ${inputVal || 'Attachment'}` : inputVal;
+    const msgType = uploadUrl && uploadType.startsWith('image/') ? 'IMAGE' : uploadUrl ? 'DOCUMENT' : 'TEXT';
+    const textContent = uploadUrl ? (inputVal || uploadName || 'Attachment') : inputVal;
     
     if (wsConnected && wsRef.current) {
       // Send via WebSocket
       wsRef.current.send(JSON.stringify({
         message_type: msgType,
         content: textContent,
+        file_url: uploadUrl,
         token_user_id: currentUser.id  // Fallback identifier
       }));
     } else {
@@ -173,6 +177,38 @@ export default function ChatTab({ trekId, members }) {
 
     setInputVal('');
     setUploadUrl('');
+    setUploadName('');
+    setUploadType('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleFilePicked = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setIsUploading(true);
+    try {
+      const data = await chatAPI.uploadAttachment(trekId, formData);
+      setUploadUrl(data.file_url);
+      setUploadName(file.name);
+      setUploadType(file.type || '');
+      if (!inputVal.trim()) setInputVal(file.name);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Upload failed. Please try again.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const clearAttachment = () => {
+    setUploadUrl('');
+    setUploadName('');
+    setUploadType('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleShareLocation = () => {
@@ -243,8 +279,9 @@ export default function ChatTab({ trekId, members }) {
         ) : (
           messages.map((msg) => {
             const isMe = currentUser && String(msg.sender) === String(currentUser.id);
-            const profilePic = msg.sender_profile?.profile_picture_url;
+            const profilePic = fixMediaUrl(msg.sender_profile?.profile_picture_url);
             const senderName = msg.sender_username;
+            const fileUrl = fixMediaUrl(msg.file_url);
             
             return (
               <div 
@@ -299,6 +336,19 @@ export default function ChatTab({ trekId, members }) {
                       </div>
                     )}
 
+                    {msg.message_type === 'IMAGE' && (
+                      <div className="space-y-2">
+                        <a href={fileUrl} target="_blank" rel="noreferrer" className="block">
+                          <img
+                            src={fileUrl}
+                            alt={msg.content || 'Shared image'}
+                            className="max-h-64 w-full rounded-lg object-cover border border-white/10"
+                          />
+                        </a>
+                        {msg.content && <p className="text-xs font-semibold">{msg.content}</p>}
+                      </div>
+                    )}
+
                     {msg.message_type === 'DOCUMENT' && (
                       <div className="space-y-1.5">
                         <p className="flex items-center gap-1 font-bold text-xs">
@@ -306,7 +356,7 @@ export default function ChatTab({ trekId, members }) {
                           <span>Attachment Link</span>
                         </p>
                         <a 
-                          href={msg.file_url} 
+                          href={fileUrl} 
                           target="_blank" 
                           rel="noreferrer"
                           className="block text-xs underline break-all font-semibold"
@@ -332,22 +382,20 @@ export default function ChatTab({ trekId, members }) {
         <div ref={scrollRef} />
       </div>
 
-      {/* Upload attachment helper drawer */}
-      {isUploading && (
+      {(isUploading || uploadUrl) && (
         <div className="px-3 sm:px-5 py-2.5 border-t border-dark-border/30 bg-dark-bg/60 flex items-center justify-between text-xs gap-2.5">
-          <input
-            type="url"
-            placeholder="Paste document / image link..."
-            value={uploadUrl}
-            onChange={(e) => setUploadUrl(e.target.value)}
-            className="flex-1 p-2 rounded bg-dark-card border border-dark-border text-dark-text outline-none text-xs min-w-0"
-          />
+          <div className="flex items-center gap-2 min-w-0 text-dark-muted">
+            {uploadType.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-primary shrink-0" /> : <Paperclip className="w-4 h-4 text-primary shrink-0" />}
+            <span className="truncate">
+              {isUploading ? 'Uploading attachment...' : uploadName || 'Attachment ready'}
+            </span>
+          </div>
           <button 
             type="button"
-            onClick={() => setIsUploading(false)} 
+            onClick={clearAttachment} 
             className="text-xs text-primary hover:text-primary-hover font-bold shrink-0 px-1"
           >
-            Done
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -356,14 +404,21 @@ export default function ChatTab({ trekId, members }) {
       <form onSubmit={handleSend} className="p-2 sm:p-4 border-t border-dark-border/30 bg-dark-bg/30 flex items-center gap-1.5 sm:gap-3">
         <button
           type="button"
-          onClick={() => setIsUploading(!isUploading)}
+          onClick={() => fileInputRef.current?.click()}
           className={`p-2 sm:p-2.5 rounded-lg border transition duration-200 shrink-0 ${
             uploadUrl ? 'border-primary/40 bg-primary/10 text-primary' : 'border-dark-border text-dark-muted hover:border-dark-border/80'
           }`}
-          title="Attach Document Link"
+          title="Add image or file"
         >
           <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt"
+          onChange={handleFilePicked}
+          className="hidden"
+        />
 
         <button
           type="button"

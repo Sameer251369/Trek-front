@@ -418,7 +418,7 @@ export default function Dashboard() {
                       </button>
 
                       {/* Organizer Settings Access Gate */}
-                      {(trek.is_organizer || trek.is_owner) && (
+                      {trek.is_group_admin && (
                         <>
                           <button
                             onClick={() => handleOpenEditModal(trek)}
@@ -430,7 +430,7 @@ export default function Dashboard() {
                             onClick={() => handleDeleteTrek(trek.id)}
                             className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2"
                           >
-                            <Trash2 className="w-3.5 h-3.5" /> Delete Link
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Gathering
                           </button>
                         </>
                       )}

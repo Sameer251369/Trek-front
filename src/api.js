@@ -8,6 +8,7 @@ const WS_BASE_URL =
 
 export const fixMediaUrl = (url) => {
   if (!url) return url;
+  if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
   return url
     .replace(/http:\/\/localhost:\d+/g, API_BASE_URL)
     .replace(/http:\/\/127\.0\.0\.1:\d+/g, API_BASE_URL);
