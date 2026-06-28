@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -22,10 +22,12 @@ import {
   Share2,
   Edit2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  MoreVertical,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { treksAPI, authAPI } from '../api';
+import { treksAPI, authAPI, fixMediaUrl } from '../api';
 import ChatTab from '../components/ChatTab';
 import MapTab from '../components/MapTab';
 import EquipmentTab from '../components/EquipmentTab';
@@ -44,6 +46,10 @@ export default function TrekDetail() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState(null);
+  const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const workspaceMenuRef = useRef(null);
+  const membersMenuRef = useRef(null);
 
   // Queries
   const { data: trek, isLoading, isError } = useQuery({
@@ -159,6 +165,20 @@ export default function TrekDetail() {
     }
   }, [id]);
 
+  useEffect(() => {
+    function handleOutsideClick(event) {
+      if (workspaceMenuRef.current && !workspaceMenuRef.current.contains(event.target)) {
+        setIsWorkspaceMenuOpen(false);
+      }
+      if (membersMenuRef.current && !membersMenuRef.current.contains(event.target)) {
+        setIsMembersOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
   // Mutation for updating group completion status
   const toggleCompletionMutation = useMutation({
     mutationFn: (newStatus) => treksAPI.update(id, { is_completed: newStatus }),
@@ -183,6 +203,7 @@ export default function TrekDetail() {
       document.body.removeChild(el);
     }
     setCopiedShare(true);
+    setIsWorkspaceMenuOpen(false);
     setTimeout(() => setCopiedShare(false), 1800);
   };
 
@@ -198,6 +219,7 @@ export default function TrekDetail() {
     });
     setEditError(null);
     setIsEditOpen(true);
+    setIsWorkspaceMenuOpen(false);
   };
 
   const handleEditSubmit = (e) => {
@@ -212,6 +234,7 @@ export default function TrekDetail() {
   };
 
   const handleDeleteGathering = () => {
+    setIsWorkspaceMenuOpen(false);
     if (window.confirm('Delete this gathering permanently? This cannot be undone.')) {
       deleteGatheringMutation.mutate();
     }
@@ -331,45 +354,6 @@ export default function TrekDetail() {
                   ? 'Sending Request...'
                   : 'Request To Join'}
               </motion.button>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Workspace Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.01 }}
-          className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
-        >
-          <h3 className="text-sm font-bold text-dark-text mb-3">Gathering Actions</h3>
-          <div className="space-y-2">
-            <button
-              onClick={handleShareGathering}
-              className="w-full py-2.5 px-4 rounded-full bg-primary text-dark-bg font-bold text-xs flex items-center justify-center gap-1.5 transition duration-150"
-            >
-              {copiedShare ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
-              <span>{copiedShare ? 'Link Copied' : 'Share Gathering'}</span>
-            </button>
-
-            {isGroupAdmin && (
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={openEditModal}
-                  className="py-2 px-3 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-dark-text font-semibold text-xs border border-white/[0.08] flex items-center justify-center gap-1.5 transition duration-150"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={handleDeleteGathering}
-                  disabled={deleteGatheringMutation.isPending}
-                  className="py-2 px-3 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-300 font-semibold text-xs border border-red-500/20 flex items-center justify-center gap-1.5 transition duration-150 disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete'}</span>
-                </button>
-              </div>
             )}
           </div>
         </motion.div>
@@ -546,44 +530,6 @@ export default function TrekDetail() {
           </motion.div>
         )}
 
-        {/* Member list */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.1 }}
-          className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
-        >
-          <h3 className="text-sm font-bold text-dark-muted mb-3">Group Members</h3>
-          <div className="space-y-3.5">
-            {trek.members?.map((member) => (
-              <div key={member.id} className="flex items-center justify-between text-xs border-b border-white/[0.05] pb-2.5 last:border-b-0 last:pb-0">
-                <Link to={`/profile/${member.user}`} className="flex items-center gap-2 hover:text-primary transition duration-150">
-                  {member.profile_picture_url ? (
-                    <img
-                      src={member.profile_picture_url}
-                      alt={member.username}
-                      className="w-7 h-7 rounded-full object-cover ring-1 ring-white/10 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-primary/10 ring-1 ring-white/10 flex items-center justify-center text-primary font-bold uppercase shrink-0">
-                      {member.username[0]}
-                    </div>
-                  )}
-                  <div>
-                    <p className="font-bold text-dark-text">{member.username}</p>
-                    <p className="text-[9px] text-dark-muted uppercase font-bold">{member.experience_level}</p>
-                  </div>
-                </Link>
-                <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase ${member.role === 'ADMIN'
-                    ? 'border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
-                    : 'border-white/10 bg-white/[0.03] text-dark-muted'
-                  }`}>
-                  {member.role}
-                </span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
       </div>
 
       {/* Main Workspace Area (Tabs) */}
@@ -592,44 +538,145 @@ export default function TrekDetail() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
-          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-[1.25rem] bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] px-4 py-3"
+          className="relative rounded-[1.25rem] bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.22)]"
         >
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Workspace</p>
-            <h3 className="text-sm sm:text-base font-bold text-dark-text truncate">{trek.title}</h3>
-          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Workspace</p>
+                {trek.is_private && (
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
+                    <Lock className="w-2.5 h-2.5" />
+                    Private
+                  </span>
+                )}
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-dark-text truncate">{trek.title}</h3>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleShareGathering}
-              className="px-4 py-2.5 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold text-xs flex items-center justify-center gap-1.5 transition duration-150"
-            >
-              {copiedShare ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
-              <span>{copiedShare ? 'Copied' : 'Share Gathering'}</span>
-            </button>
-
-            {isGroupAdmin && (
-              <>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative" ref={membersMenuRef}>
                 <button
                   type="button"
-                  onClick={openEditModal}
-                  className="px-4 py-2.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-dark-text font-semibold text-xs border border-white/[0.08] flex items-center justify-center gap-1.5 transition duration-150"
+                  onClick={() => setIsMembersOpen((open) => !open)}
+                  className="h-10 px-3 sm:px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text font-bold text-xs flex items-center gap-2 transition duration-150"
+                  title="Group members"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  <span>Edit</span>
+                  <Users className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">Members</span>
+                  <span className="text-primary">{trek.members?.length || 0}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-dark-muted transition-transform ${isMembersOpen ? 'rotate-180' : ''}`} />
                 </button>
+
+                <AnimatePresence>
+                  {isMembersOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16 }}
+                      className="absolute right-0 mt-2 w-[min(19rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-2 z-40"
+                    >
+                      <div className="px-2.5 py-2 flex items-center justify-between border-b border-white/[0.06] mb-1">
+                        <span className="text-xs font-bold text-dark-text">Group Members</span>
+                        <span className="text-[10px] font-bold text-primary">{trek.members?.length || 0} / {trek.capacity}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {trek.members?.map((member) => (
+                          <Link
+                            key={member.id}
+                            to={`/profile/${member.user}`}
+                            onClick={() => setIsMembersOpen(false)}
+                            className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-white/[0.06] transition duration-150"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {member.profile_picture_url ? (
+                                <img
+                                  src={fixMediaUrl(member.profile_picture_url)}
+                                  alt={member.username}
+                                  className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-primary/10 ring-1 ring-white/10 flex items-center justify-center text-primary font-bold uppercase shrink-0">
+                                  {member.username ? member.username[0] : '?'}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-dark-text truncate">{member.username}</p>
+                                <p className="text-[9px] text-dark-muted uppercase font-bold truncate">{member.experience_level}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase shrink-0 ${member.role === 'ADMIN'
+                                ? 'border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
+                                : 'border-white/10 bg-white/[0.03] text-dark-muted'
+                              }`}>
+                              {member.role}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="relative" ref={workspaceMenuRef}>
                 <button
                   type="button"
-                  onClick={handleDeleteGathering}
-                  disabled={deleteGatheringMutation.isPending}
-                  className="px-4 py-2.5 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-300 font-semibold text-xs border border-red-500/20 flex items-center justify-center gap-1.5 transition duration-150 disabled:opacity-50"
+                  onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
+                  className="h-10 w-10 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text flex items-center justify-center transition duration-150"
+                  title="Gathering actions"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete'}</span>
+                  <MoreVertical className="w-4 h-4" />
                 </button>
-              </>
-            )}
+
+                <AnimatePresence>
+                  {isWorkspaceMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.16 }}
+                      className="absolute right-0 mt-2 w-48 rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50"
+                    >
+                      <button
+                        type="button"
+                        onClick={handleShareGathering}
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Share2 className="w-3.5 h-3.5" />
+                          {copiedShare ? 'Link Copied' : 'Share Gathering'}
+                        </span>
+                        {copiedShare && <Check className="w-3.5 h-3.5 text-green-400" />}
+                      </button>
+
+                      {isGroupAdmin && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={openEditModal}
+                            className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            Edit Gathering
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDeleteGathering}
+                            disabled={deleteGatheringMutation.isPending}
+                            className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete Gathering'}
+                          </button>
+                        </>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
         </motion.div>
 
