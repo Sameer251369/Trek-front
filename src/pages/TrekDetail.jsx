@@ -379,10 +379,68 @@ export default function TrekDetail() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
+          className="relative rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
         >
+          {/* Gathering actions (share / edit / delete) */}
+          <div className="absolute right-4 top-4 z-20" ref={workspaceMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
+              className="h-8 w-8 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text flex items-center justify-center transition duration-150"
+              title="Gathering actions"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            <AnimatePresence>
+              {isWorkspaceMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                  transition={{ duration: 0.16 }}
+                  className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50"
+                >
+                  <button
+                    type="button"
+                    onClick={handleShareGathering}
+                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Share2 className="w-3.5 h-3.5" />
+                      {copiedShare ? 'Link Copied' : 'Share Gathering'}
+                    </span>
+                    {copiedShare && <Check className="w-3.5 h-3.5 text-green-400" />}
+                  </button>
+
+                  {isGroupAdmin && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={openEditModal}
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        Edit Gathering
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteGathering}
+                        disabled={deleteGatheringMutation.isPending}
+                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete Gathering'}
+                      </button>
+                    </>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="space-y-4">
-            <div>
+            <div className="pr-10">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
                   {trek.difficulty}
@@ -403,10 +461,72 @@ export default function TrekDetail() {
                 <Calendar className="w-4 h-4 text-primary" />
                 <span>Date: {new Date(trek.date).toLocaleDateString()}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                <span>Capacity: {trek.members?.length} / {trek.capacity} joined</span>
+
+              <div className="relative" ref={membersMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsMembersOpen((open) => !open)}
+                  className="w-full flex items-center gap-2 -mx-1 px-1 py-0.5 rounded-lg hover:bg-white/[0.05] transition duration-150"
+                >
+                  <Users className="w-4 h-4 text-primary" />
+                  <span className="flex-1 text-left">
+                    Members: <span className="text-primary font-bold">{trek.members?.length || 0}</span> / {trek.capacity} joined
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-dark-muted transition-transform ${isMembersOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {isMembersOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                      transition={{ duration: 0.16 }}
+                      className="absolute left-0 top-full mt-2 w-[min(19rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-2 z-50"
+                    >
+                      <div className="px-2.5 py-2 flex items-center justify-between border-b border-white/[0.06] mb-1">
+                        <span className="text-xs font-bold text-dark-text">Group Members</span>
+                        <span className="text-[10px] font-bold text-primary">{trek.members?.length || 0} / {trek.capacity}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {trek.members?.map((member) => (
+                          <Link
+                            key={member.id}
+                            to={`/profile/${member.user}`}
+                            onClick={() => setIsMembersOpen(false)}
+                            className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-white/[0.06] transition duration-150"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {member.profile_picture_url ? (
+                                <img
+                                  src={fixMediaUrl(member.profile_picture_url)}
+                                  alt={member.username}
+                                  className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-primary/10 ring-1 ring-white/10 flex items-center justify-center text-primary font-bold uppercase shrink-0">
+                                  {member.username ? member.username[0] : '?'}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-dark-text truncate">{member.username}</p>
+                                <p className="text-[9px] text-dark-muted uppercase font-bold truncate">{member.experience_level}</p>
+                              </div>
+                            </div>
+                            <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase shrink-0 ${member.role === 'ADMIN'
+                                ? 'border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
+                                : 'border-white/10 bg-white/[0.03] text-dark-muted'
+                              }`}>
+                              {member.role}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-primary" />
                 <span>Organizer: {trek.organizer_username}</span>
@@ -534,167 +654,6 @@ export default function TrekDetail() {
 
       {/* Main Workspace Area (Tabs) */}
       <div className="lg:col-span-3 space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="relative rounded-[1.25rem] bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] px-4 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.22)]"
-        >
-          <div className="absolute right-4 top-3 z-20" ref={workspaceMenuRef}>
-            <button
-              type="button"
-              onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
-              className="h-8 w-8 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text flex items-center justify-center transition duration-150"
-              title="Gathering actions"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            <AnimatePresence>
-              {isWorkspaceMenuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                  transition={{ duration: 0.16 }}
-                  className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50"
-                >
-                  <button
-                    type="button"
-                    onClick={handleShareGathering}
-                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Share2 className="w-3.5 h-3.5" />
-                      {copiedShare ? 'Link Copied' : 'Share Gathering'}
-                    </span>
-                    {copiedShare && <Check className="w-3.5 h-3.5 text-green-400" />}
-                  </button>
-
-                  {isGroupAdmin && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={openEditModal}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        Edit Gathering
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDeleteGathering}
-                        disabled={deleteGatheringMutation.isPending}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        {deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete Gathering'}
-                      </button>
-                    </>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1 pr-10">
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-primary font-bold">Workspace</p>
-                  {trek.is_private && (
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
-                      <Lock className="w-2.5 h-2.5" />
-                      Private
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 min-w-0">
-                  <h3 className="text-base sm:text-lg font-bold text-dark-text truncate">{trek.title}</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
-              <div className="flex min-w-0 flex-wrap items-center gap-3 text-[11px] text-dark-muted">
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-primary" />
-                  {new Date(trek.date).toLocaleDateString()}
-                </span>
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <Compass className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate max-w-[12rem]">{trek.destination || trek.organizer_username}</span>
-                </span>
-              </div>
-
-              <div className="relative shrink-0" ref={membersMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsMembersOpen((open) => !open)}
-                  className="h-9 px-3 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text font-bold text-xs flex items-center gap-2 transition duration-150"
-                  title="Group members"
-                >
-                  <Users className="w-4 h-4 text-primary" />
-                  <span>Members</span>
-                  <span className="text-primary">{trek.members?.length || 0}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-dark-muted transition-transform ${isMembersOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                <AnimatePresence>
-                  {isMembersOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                      transition={{ duration: 0.16 }}
-                      className="absolute right-0 bottom-full mb-2 w-[min(19rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-2 z-50"
-                    >
-                      <div className="px-2.5 py-2 flex items-center justify-between border-b border-white/[0.06] mb-1">
-                        <span className="text-xs font-bold text-dark-text">Group Members</span>
-                        <span className="text-[10px] font-bold text-primary">{trek.members?.length || 0} / {trek.capacity}</span>
-                      </div>
-                      <div className="space-y-1">
-                        {trek.members?.map((member) => (
-                          <Link
-                            key={member.id}
-                            to={`/profile/${member.user}`}
-                            onClick={() => setIsMembersOpen(false)}
-                            className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-white/[0.06] transition duration-150"
-                          >
-                            <div className="flex items-center gap-2 min-w-0">
-                              {member.profile_picture_url ? (
-                                <img
-                                  src={fixMediaUrl(member.profile_picture_url)}
-                                  alt={member.username}
-                                  className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-primary/10 ring-1 ring-white/10 flex items-center justify-center text-primary font-bold uppercase shrink-0">
-                                  {member.username ? member.username[0] : '?'}
-                                </div>
-                              )}
-                              <div className="min-w-0">
-                                <p className="text-xs font-bold text-dark-text truncate">{member.username}</p>
-                                <p className="text-[9px] text-dark-muted uppercase font-bold truncate">{member.experience_level}</p>
-                              </div>
-                            </div>
-                            <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase shrink-0 ${member.role === 'ADMIN'
-                                ? 'border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
-                                : 'border-white/10 bg-white/[0.03] text-dark-muted'
-                              }`}>
-                              {member.role}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Workspace Tab Bar */}
         <div className="flex rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] p-1.5 gap-1 overflow-x-auto">
           {tabs.map((tab) => {
