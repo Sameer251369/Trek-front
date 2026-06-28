@@ -466,13 +466,15 @@ export default function TrekDetail() {
                 <button
                   type="button"
                   onClick={() => setIsMembersOpen((open) => !open)}
-                  className="w-full flex items-center gap-2 -mx-1 px-1 py-0.5 rounded-lg hover:bg-white/[0.05] transition duration-150"
+                  className="w-full h-10 px-3 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text font-bold text-xs flex items-center gap-2 transition duration-150"
+                  title="Group members"
                 >
-                  <Users className="w-4 h-4 text-primary" />
-                  <span className="flex-1 text-left">
-                    Members: <span className="text-primary font-bold">{trek.members?.length || 0}</span> / {trek.capacity} joined
+                  <Users className="w-4 h-4 text-primary shrink-0" />
+                  <span className="flex-1 text-left">Group Members</span>
+                  <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary font-bold">
+                    {trek.members?.length || 0}/{trek.capacity}
                   </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-dark-muted transition-transform ${isMembersOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-dark-muted transition-transform shrink-0 ${isMembersOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 <AnimatePresence>
