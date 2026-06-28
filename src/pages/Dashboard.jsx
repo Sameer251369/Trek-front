@@ -27,10 +27,7 @@ const cardVariants = {
 
 // Public directory images for background rotation animation loop
 const RALLY_IMAGES = [
-  '/akif-waseem-mnSH1Tfd-Yc-unsplash.jpg',
-  '/gentrit-sylejmani-JjUyjE-oEbM-unsplash.jpg',
-  '/jennie-clavel-G0zoYDFvUXQ-unsplash.jpg',
-  '/logan-voss-hT0nO6d2QVE-unsplash.jpg',
+   '/ChatGPT Image Jun 28, 2026, 10_04_08 PM.png',
   '/paolo-candelo-8tXukRrs7yk-unsplash.jpg'
 ];
 
