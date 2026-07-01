@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, CheckCircle, Circle, Briefcase, PlusCircle, AlertCircle } from 'lucide-react';
 import { equipmentAPI, authAPI } from '../api';
@@ -70,58 +70,58 @@ export default function EquipmentTab({ trekId }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[30vh]">
-        <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border border-primary border-t-transparent animate-spin" />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
-        Failed to retrieve belongings ledger.
+      <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-none text-xs font-mono">
+        SYS_ERR // Failed to retrieve belongings ledger.
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start text-left">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start text-left font-mono text-xs">
       {/* List items */}
       <div className="lg:col-span-2 space-y-4">
-        <div className="glass-panel rounded-xl border border-dark-border/30 overflow-hidden">
-          <div className="px-6 py-4 border-b border-dark-border/30 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-dark-text uppercase tracking-widest flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-primary" />
+        <div className="border border-[#1C1C1E] bg-[#0A0A0C] rounded-none overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#1C1C1E] flex items-center justify-between">
+            <h3 className="text-xs font-bold text-dark-text uppercase tracking-widest flex items-center gap-2">
+              <Briefcase className="w-4 h-4 text-primary" />
               <span>Gear Checklist</span>
             </h3>
-            <span className="text-xs text-dark-muted">
-              {gearList.filter(item => item.assigned_to).length} / {gearList.length} Items Claimed
+            <span className="text-[10px] text-dark-muted font-mono">
+              [ {gearList.filter(item => item.assigned_to).length} / {gearList.length} ITEMS CLAIMED ]
             </span>
           </div>
 
           {gearList.length === 0 ? (
-            <div className="p-12 text-center text-dark-muted text-xs">
-              <PlusCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p>No gear has been logged for this trek yet.</p>
-              <p className="mt-1">Add items like sleeping bags, ropes, tents, or camping stoves on the side.</p>
+            <div className="p-12 text-center text-dark-muted font-sans text-xs">
+              <PlusCircle className="w-8 h-8 mx-auto mb-2 opacity-40 text-primary" />
+              <p className="font-mono">No gear has been logged for this trek yet.</p>
+              <p className="mt-1 font-sans text-[11px] text-dark-muted/80">Add items like sleeping bags, ropes, tents, or camping stoves on the side panel.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto text-xs">
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-dark-bg/60 text-dark-muted border-b border-dark-border/25">
-                    <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Item Details</th>
-                    <th className="px-6 py-3 text-center font-bold uppercase tracking-wider">Qty Required</th>
-                    <th className="px-6 py-3 text-left font-bold uppercase tracking-wider">Assigned Owner</th>
-                    <th className="px-6 py-3 text-right font-bold uppercase tracking-wider">Actions</th>
+                  <tr className="bg-[#000000] text-dark-muted border-b border-[#1C1C1E]">
+                    <th className="px-6 py-3 text-left font-bold uppercase tracking-wider text-[9px]">Item Details</th>
+                    <th className="px-6 py-3 text-center font-bold uppercase tracking-wider text-[9px]">Qty Required</th>
+                    <th className="px-6 py-3 text-left font-bold uppercase tracking-wider text-[9px]">Assigned Owner</th>
+                    <th className="px-6 py-3 text-right font-bold uppercase tracking-wider text-[9px]">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-dark-border/20">
+                <tbody className="divide-y divide-[#1C1C1E]/50">
                   {gearList.map((item) => {
                     const isMyClaim = item.assigned_to === currentUser.id;
                     return (
-                      <tr key={item.id} className="hover:bg-dark-card/30 transition duration-150 text-dark-text">
-                        <td className="px-6 py-4 font-semibold">{item.name}</td>
-                        <td className="px-6 py-4 text-center">{item.quantity}</td>
+                      <tr key={item.id} className="hover:bg-[#E8FF00]/5 transition duration-150 text-dark-text">
+                        <td className="px-6 py-4 font-semibold font-sans">{item.name}</td>
+                        <td className="px-6 py-4 text-center font-mono">{item.quantity}</td>
                         <td className="px-6 py-4">
                           {item.assigned_to ? (
                             <span className={`inline-flex items-center gap-1 font-bold ${isMyClaim ? 'text-primary' : 'text-yellow-500'}`}>
@@ -130,7 +130,7 @@ export default function EquipmentTab({ trekId }) {
                             </span>
                           ) : (
                             <span className="text-dark-muted flex items-center gap-1 italic">
-                              <Circle className="w-3.5 h-3.5" />
+                              <Circle className="w-3.5 h-3.5 text-dark-muted/40" />
                               <span>Unassigned</span>
                             </span>
                           )}
@@ -138,20 +138,20 @@ export default function EquipmentTab({ trekId }) {
                         <td className="px-6 py-4 text-right flex items-center justify-end gap-3.5">
                           <button
                             onClick={() => handleClaim(item)}
-                            className={`px-3 py-1.5 rounded text-[10px] font-bold border transition duration-150 ${
+                            className={`px-3 py-1.5 rounded-none text-[10px] font-bold border transition duration-150 ${
                               isMyClaim 
-                                ? 'bg-primary/10 border-primary/20 text-primary hover:bg-transparent hover:border-red-500 hover:text-red-400'
+                                ? 'bg-primary/10 border-primary/20 text-primary hover:bg-transparent hover:border-red-500 hover:text-red-500'
                                 : item.assigned_to 
-                                  ? 'bg-transparent border-dark-border text-dark-muted hover:border-primary hover:text-primary'
+                                  ? 'bg-transparent border-[#1C1C1E] text-dark-muted hover:border-primary hover:text-primary'
                                   : 'bg-primary hover:bg-primary-hover text-dark-bg border-transparent'
                             }`}
                           >
-                            {isMyClaim ? 'Release Claim' : 'Claim Item'}
+                            {isMyClaim ? 'RELEASE CLAIM' : 'CLAIM ITEM'}
                           </button>
 
                           <button
                             onClick={() => deleteGearMutation.mutate(item.id)}
-                            className="text-dark-muted hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition duration-150"
+                            className="text-dark-muted hover:text-red-500 p-1 rounded-none hover:bg-red-500/10 transition duration-150"
                             title="Delete Item"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -166,7 +166,7 @@ export default function EquipmentTab({ trekId }) {
           )}
         </div>
         
-        <div className="p-4 rounded-xl border border-dark-border/20 bg-dark-card/20 flex gap-2.5 text-xs text-dark-muted">
+        <div className="p-4 rounded-none border border-[#1C1C1E] bg-[#0A0A0C] flex gap-2.5 text-xs text-dark-muted font-sans">
           <AlertCircle className="w-5 h-5 text-primary shrink-0" />
           <p className="leading-relaxed">
             Claims help assign weight logs and coordinate campsites. For example, if Sameer brings the cooking stove, others won't need to carry duplicates.
@@ -176,48 +176,48 @@ export default function EquipmentTab({ trekId }) {
 
       {/* Add form */}
       <div className="lg:col-span-1">
-        <form onSubmit={handleAddSubmit} className="glass-panel p-5 rounded-xl border border-dark-border/30 space-y-4 text-xs">
-          <h3 className="text-sm font-bold text-dark-text flex items-center gap-1">
+        <form onSubmit={handleAddSubmit} className="border p-5 rounded-none border-[#1C1C1E] bg-[#0A0A0C] space-y-4 text-xs">
+          <h3 className="text-xs font-bold text-dark-text uppercase tracking-wider flex items-center gap-1.5">
             <Plus className="w-4 h-4 text-primary" />
             <span>Add Required Gear</span>
           </h3>
 
           {formError && (
-            <div className="p-2 bg-red-500/10 border border-red-500/20 rounded text-red-300">
+            <div className="p-2 bg-red-500/10 border border-red-500/20 rounded-none text-red-300">
               {formError}
             </div>
           )}
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-dark-muted mb-1">Gear Item Name</label>
+            <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[01] Gear Item Name</label>
             <input
               type="text"
               required
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
               placeholder="e.g., Cooking Stove, 4-Man Tent..."
-              className="w-full p-2.5 rounded bg-dark-bg border border-dark-border text-dark-text outline-none focus:border-primary"
+              className="w-full p-2.5 rounded-none bg-[#000000] border border-[#1C1C1E] text-dark-text outline-none focus:border-primary font-sans"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-dark-muted mb-1">Quantity Needed</label>
+            <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[02] Quantity Needed</label>
             <input
               type="number"
               required
               min="1"
               value={itemQty}
               onChange={(e) => setItemQty(e.target.value)}
-              className="w-full p-2.5 rounded bg-dark-bg border border-dark-border text-dark-text outline-none"
+              className="w-full p-2.5 rounded-none bg-[#000000] border border-[#1C1C1E] text-dark-text outline-none focus:border-primary"
             />
           </div>
 
           <button
             type="submit"
             disabled={addGearMutation.isPending}
-            className="w-full py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-extrabold rounded-lg transition duration-200"
+            className="w-full py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-extrabold rounded-none transition duration-200 uppercase tracking-wider"
           >
-            {addGearMutation.isPending ? 'Saving...' : 'Add to Checklist'}
+            {addGearMutation.isPending ? 'SAVING...' : 'ADD TO CHECKLIST'}
           </button>
         </form>
       </div>

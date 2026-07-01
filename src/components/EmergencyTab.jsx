@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ShieldAlert, Download, PhoneCall, MapPin, Check, Info } from 'lucide-react';
 
 export default function EmergencyTab({ trekId, trek }) {
@@ -9,6 +9,7 @@ export default function EmergencyTab({ trekId, trek }) {
 
   const handleSosTrigger = () => {
     setSosActive(true);
+    console.log("SOS triggered for gathering ID:", trekId);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -18,7 +19,6 @@ export default function EmergencyTab({ trekId, trek }) {
           });
         },
         () => {
-          // Fallback mock
           setCoords({
             lat: 13.2167 + (Math.random() - 0.5) * 0.05,
             lng: 75.2500 + (Math.random() - 0.5) * 0.05
@@ -56,7 +56,6 @@ export default function EmergencyTab({ trekId, trek }) {
       ]
     };
 
-    // Serialize and create a downloadable JSON file
     const file = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const element = document.createElement("a");
     element.href = URL.createObjectURL(file);
@@ -65,18 +64,17 @@ export default function EmergencyTab({ trekId, trek }) {
     element.click();
     document.body.removeChild(element);
 
-    // Also store in localStorage for offline client loading
     localStorage.setItem(`offline_trek_${trek.id}`, JSON.stringify(data));
     setOfflinePackDownloaded(true);
     setTimeout(() => setOfflinePackDownloaded(false), 3000);
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 text-left text-xs">
+    <div className="max-w-3xl mx-auto space-y-8 text-left text-xs font-mono">
       
       {/* SOS Panel */}
-      <div className={`glass-panel p-6 rounded-2xl border transition duration-300 relative overflow-hidden ${
-        sosActive ? 'border-red-500 bg-red-950/20' : 'border-red-500/20 bg-dark-card/40'
+      <div className={`border p-6 rounded-none transition duration-300 relative overflow-hidden ${
+        sosActive ? 'border-red-500 bg-red-950/15' : 'border-[#1C1C1E] bg-[#0A0A0C]'
       }`}>
         {sosActive && (
           <div className="absolute inset-0 bg-red-500/5 animate-pulse-slow pointer-events-none" />
@@ -84,36 +82,36 @@ export default function EmergencyTab({ trekId, trek }) {
 
         <div className="flex flex-col sm:flex-row items-center gap-6 justify-between">
           <div className="space-y-2 text-center sm:text-left">
-            <h3 className="text-base font-extrabold text-red-400 flex items-center justify-center sm:justify-start gap-1.5">
-              <ShieldAlert className="w-5 h-5 animate-pulse" />
+            <h3 className="text-sm font-bold text-red-500 flex items-center justify-center sm:justify-start gap-1.5 uppercase tracking-wider">
+              <ShieldAlert className="w-5 h-5 animate-pulse text-red-500" />
               <span>SOS Emergency Beacon</span>
             </h3>
-            <p className="text-dark-muted max-w-md">
-              Stuck or injured on the mountain? Triggering the beacon accesses GPS coordinates and copies a template text for emergency dispatch.
+            <p className="text-dark-muted max-w-md font-sans">
+              Stuck or injured on the gathering expedition? Triggering the beacon accesses GPS coordinates and copies a template text for emergency dispatch.
             </p>
           </div>
 
           <button
             onClick={handleSosTrigger}
-            className="w-24 h-24 rounded-full bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm flex items-center justify-center shadow-lg shadow-red-600/30 transition duration-200 border-4 border-red-800 animate-pulse uppercase shrink-0"
+            className="w-24 h-24 bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm flex items-center justify-center transition duration-200 border border-red-800 rounded-none uppercase shrink-0 hover:border-primary tracking-widest font-mono"
           >
             SOS
           </button>
         </div>
 
         {sosActive && coords && (
-          <div className="mt-6 p-4 rounded-xl bg-dark-bg/60 border border-red-500/30 space-y-4">
+          <div className="mt-6 p-4 rounded-none bg-[#000000] border border-red-500/30 space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-mono text-red-300">
-                <MapPin className="w-4.5 h-4.5" />
+              <div className="flex items-center gap-2 font-mono text-red-400">
+                <MapPin className="w-4 h-4" />
                 <span>GPS: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}</span>
               </div>
 
               <button
                 onClick={handleCopyCoords}
-                className="py-1.5 px-3 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/30 text-red-400 font-bold rounded transition duration-150 text-[10px]"
+                className="py-1.5 px-3 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/30 text-red-400 font-bold rounded-none transition duration-150 text-[10px]"
               >
-                {copied ? 'Copied Link!' : 'Copy Emergency SMS'}
+                {copied ? 'COPIED LINK' : 'COPY EMERGENCY SMS'}
               </button>
             </div>
 
@@ -124,15 +122,15 @@ export default function EmergencyTab({ trekId, trek }) {
             <div className="flex gap-2">
               <a 
                 href={`sms:?body=EMERGENCY!+Need+help+at+${trek.title}.+GPS:+${coords.lat.toFixed(5)},${coords.lng.toFixed(5)}`}
-                className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded text-center block"
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-none text-center block"
               >
-                Send SMS Template
+                SEND SMS TEMPLATE
               </a>
               <button 
                 onClick={() => setSosActive(false)}
-                className="px-4 py-2 bg-dark-border text-dark-muted font-bold rounded border border-dark-border/80"
+                className="px-4 py-2 bg-dark-bg text-dark-muted font-bold rounded-none border border-[#1C1C1E]"
               >
-                Reset Beacon
+                RESET BEACON
               </button>
             </div>
           </div>
@@ -143,63 +141,63 @@ export default function EmergencyTab({ trekId, trek }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* Offline Pack */}
-        <div className="glass-panel p-5 rounded-xl border border-dark-border/30 flex flex-col justify-between">
+        <div className="border p-5 rounded-none border-[#1C1C1E] bg-[#0A0A0C] flex flex-col justify-between">
           <div className="space-y-2">
             <h4 className="font-bold text-dark-text uppercase tracking-wider flex items-center gap-1.5">
-              <Download className="w-4.5 h-4.5 text-primary" />
+              <Download className="w-4 h-4 text-primary" />
               <span>Offline Expedition Pack</span>
             </h4>
-            <p className="text-dark-muted leading-relaxed">
+            <p className="text-dark-muted leading-relaxed font-sans">
               Trekking trails usually lack internet coverage. Download the offline pack containing route checkpoints, safety instructions, and leader contacts to keep access when off-grid.
             </p>
           </div>
 
           <button
             onClick={downloadOfflineData}
-            className="w-full mt-5 py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-extrabold rounded-lg transition duration-200 flex items-center justify-center gap-1.5"
+            className="w-full mt-5 py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-extrabold rounded-none transition duration-200 flex items-center justify-center gap-1.5"
           >
             {offlinePackDownloaded ? (
               <>
                 <Check className="w-4 h-4" />
-                <span>Downloaded Successfully!</span>
+                <span>DOWNLOADED SYSTEM DATA</span>
               </>
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Download Offline Pack (.json)</span>
+                <span>DOWNLOAD OFFLINE PACK (.JSON)</span>
               </>
             )}
           </button>
         </div>
 
         {/* Local Emergency Hotlines */}
-        <div className="glass-panel p-5 rounded-xl border border-dark-border/30 space-y-4">
+        <div className="border p-5 rounded-none border-[#1C1C1E] bg-[#0A0A0C] space-y-4">
           <h4 className="font-bold text-dark-text uppercase tracking-wider flex items-center gap-1.5">
-            <PhoneCall className="w-4.5 h-4.5 text-primary" />
+            <PhoneCall className="w-4 h-4 text-primary" />
             <span>Emergency Contacts</span>
           </h4>
 
           <div className="space-y-3 font-semibold text-dark-text">
-            <div className="flex justify-between items-center border-b border-dark-border/10 pb-1.5">
+            <div className="flex justify-between items-center border-b border-[#1C1C1E]/50 pb-1.5">
               <div>
                 <p>National Mountain Rescue</p>
-                <p className="text-[10px] text-dark-muted font-normal">State search and rescue dispatchers</p>
+                <p className="text-[10px] text-dark-muted font-normal font-sans">State search and rescue dispatchers</p>
               </div>
               <span className="text-primary font-bold">108</span>
             </div>
             
-            <div className="flex justify-between items-center border-b border-dark-border/10 pb-1.5">
+            <div className="flex justify-between items-center border-b border-[#1C1C1E]/50 pb-1.5">
               <div>
                 <p>Local Forest Patrol / Ranger</p>
-                <p className="text-[10px] text-dark-muted font-normal">Permits & trail block reports</p>
+                <p className="text-[10px] text-dark-muted font-normal font-sans">Permits & trail block reports</p>
               </div>
               <span className="text-primary font-bold">112</span>
             </div>
 
-            <div className="flex justify-between items-center border-b border-dark-border/10 pb-1.5">
+            <div className="flex justify-between items-center border-b border-[#1C1C1E]/50 pb-1.5">
               <div>
                 <p>Medical / Ambulance Dispatch</p>
-                <p className="text-[10px] text-dark-muted font-normal">Nearest base camp medical station</p>
+                <p className="text-[10px] text-dark-muted font-normal font-sans">Nearest base camp medical station</p>
               </div>
               <span className="text-primary font-bold">102</span>
             </div>
@@ -208,9 +206,9 @@ export default function EmergencyTab({ trekId, trek }) {
 
       </div>
 
-      <div className="p-4 rounded-xl border border-dark-border/20 bg-dark-card/10 flex gap-2.5">
+      <div className="p-4 rounded-none border border-[#1C1C1E] bg-[#050506] flex gap-2.5">
         <Info className="w-5 h-5 text-primary shrink-0" />
-        <p className="leading-relaxed text-dark-muted">
+        <p className="leading-relaxed text-dark-muted font-sans">
           Your last known coordinates are automatically shared with members when you send messages in the Trek Chat or press the SOS button, enabling group members to pinpoint your location on the map.
         </p>
       </div>

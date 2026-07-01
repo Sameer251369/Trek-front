@@ -68,6 +68,7 @@ api.interceptors.response.use(
         // Retry the original request with the fresh token
         return api(originalRequest);
       } catch (refreshError) {
+        console.error("Token refresh failed:", refreshError);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
@@ -302,9 +303,8 @@ export const usersAPI = {
       if (data.profile) {
         Object.entries(data.profile).forEach(([key, value]) => {
           if (value !== undefined && value !== null) {
-            // FIX: Maps directly using profile prefix notation matching the custom Django payload checks
             formData.append(`profile.${key}`, value);
-            formData.append(key, value); // Keep fallback for broad parsers
+            formData.append(key, value);
           }
         });
       }

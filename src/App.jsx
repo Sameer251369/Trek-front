@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState, useEffect, useRef } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider, useQuery, useQueries } from '@tanstack/react-query';
 import { Compass, User, LogOut, Settings, ArrowRight, ChevronUp, Calendar } from 'lucide-react';
@@ -23,12 +23,11 @@ const queryClient = new QueryClient({
 function PageFallback() {
   return (
     <div className="flex items-center justify-center min-h-[45vh]">
-      <div className="w-9 h-9 border-[3px] border-primary/30 border-t-primary rounded-full animate-spin" />
+      <div className="w-8 h-8 border border-primary/20 border-t-primary animate-spin" />
     </div>
   );
 }
 
-// ── Fixed Isolated Header Avatar ──
 function NavHeaderAvatar({ src, username }) {
   const [imgError, setImgError] = useState(false);
 
@@ -37,14 +36,14 @@ function NavHeaderAvatar({ src, username }) {
       <img
         src={src}
         alt={username}
-        className="w-9 h-9 rounded-full object-cover aspect-square ring-2 ring-white/10 group-hover:ring-primary/60 transition duration-300 shrink-0 block"
+        className="w-full h-full object-cover block"
         onError={() => setImgError(true)}
       />
     );
   }
 
   return (
-    <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary ring-2 ring-white/10 group-hover:ring-primary/60 transition duration-300 shrink-0 aspect-square">
+    <div className="w-full h-full flex items-center justify-center text-dark-muted bg-[#121214]">
       <User className="w-4 h-4" />
     </div>
   );
@@ -54,32 +53,34 @@ function NavigationBar({ user, onLogout }) {
   const userProfilePic = user?.profile_picture_url || user?.profile?.profile_picture_url;
 
   return (
-    <nav className="sticky top-0 z-50 px-4 sm:px-6 py-3">
-      <div className="max-w-7xl mx-auto flex items-center justify-between rounded-full px-4 sm:px-6 py-2.5 bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
-        <Link to="/" className="flex items-center gap-2 text-primary font-bold text-lg sm:text-xl tracking-tight shrink-0 no-underline">
-          <Compass className="w-6 h-6 sm:w-7 sm:h-7" />
-          <span>RallyGrid</span>
+    <nav className="sticky top-0 z-50 w-full bg-[#050505]/90 backdrop-blur-md border-b border-[#1C1C1E] px-4 sm:px-6 py-4">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2 text-primary font-bold text-lg sm:text-xl tracking-[0.15em] font-mono shrink-0 no-underline hover:opacity-90">
+          <Compass className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2} />
+          <span className="uppercase">RallyGrid</span>
         </Link>
 
         {user ? (
-          <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+          <div className="flex items-center gap-4 sm:gap-6 min-w-0">
             <Link
               to="/"
-              className="hidden sm:inline-block text-dark-muted hover:text-dark-text transition duration-300 text-sm font-medium shrink-0 no-underline px-3 py-1.5 rounded-full hover:bg-white/[0.06]"
+              className="hidden sm:inline-block text-dark-muted hover:text-primary transition duration-200 text-xs font-mono uppercase tracking-wider shrink-0 no-underline border border-transparent hover:border-[#1C1C1E] px-3 py-1.5"
             >
-              Expeditions
+              [ Expeditions ]
             </Link>
-            <div className="hidden sm:block h-5 w-px bg-white/10 shrink-0" />
+            <div className="hidden sm:block h-4 w-px bg-[#1C1C1E] shrink-0" />
 
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <Link to={`/profile/${user.id}`} className="flex items-center gap-2.5 group min-w-0 no-underline pl-1">
-                <NavHeaderAvatar src={userProfilePic} username={user.username} />
+            <div className="flex items-center gap-3 min-w-0">
+              <Link to={`/profile/${user.id}`} className="flex items-center gap-3 group min-w-0 no-underline border border-transparent hover:border-[#1C1C1E] p-1">
+                <div className="w-8 h-8 border border-[#1C1C1E] group-hover:border-primary shrink-0 relative overflow-hidden bg-[#000000]">
+                  <NavHeaderAvatar src={userProfilePic} username={user.username} />
+                </div>
 
                 <div className="hidden sm:block text-left truncate max-w-[120px]">
-                  <p className="text-sm font-semibold leading-tight text-dark-text group-hover:text-primary transition duration-200 truncate">
+                  <p className="text-xs font-mono uppercase font-bold leading-tight text-dark-text group-hover:text-primary transition duration-200 truncate">
                     {user.username}
                   </p>
-                  <p className="text-[10px] text-dark-muted font-medium tracking-wide truncate">
+                  <p className="text-[9px] font-mono text-dark-muted uppercase tracking-wider truncate">
                     {user.profile?.experience_level || 'Beginner'}
                   </p>
                 </div>
@@ -87,20 +88,20 @@ function NavigationBar({ user, onLogout }) {
 
               <button
                 onClick={onLogout}
-                className="text-dark-muted hover:text-red-400 w-9 h-9 rounded-full hover:bg-red-500/10 transition duration-300 shrink-0 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                className="text-dark-muted hover:text-primary border border-transparent hover:border-[#1C1C1E] w-8 h-8 transition duration-200 shrink-0 flex items-center justify-center focus:outline-none"
                 title="Logout"
                 aria-label="Logout Workspace"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         ) : (
           <Link
             to="/login"
-            className="bg-primary hover:bg-primary-hover text-dark-bg font-semibold px-5 py-2 rounded-full transition duration-300 text-sm shadow-lg shadow-primary/20 shrink-0 no-underline"
+            className="bg-primary text-dark-bg font-mono font-bold text-xs uppercase tracking-wider px-5 py-2.5 transition duration-200 hover:bg-primary-hover shrink-0 no-underline"
           >
-            Sign In
+            [ SIGN IN ]
           </Link>
         )}
       </div>
@@ -119,13 +120,14 @@ function getChatLastSeen(trekId) {
 function Badge({ count, className = '', color = 'red' }) {
   if (!count || count <= 0) return null;
   const colorClasses = color === 'red'
-    ? 'bg-red-500 text-white'
-    : 'bg-primary text-dark-bg';
+    ? 'bg-primary text-dark-bg font-bold border border-primary'
+    : 'bg-[#111] text-primary border border-primary/30';
   return (
     <span
-      className={`flex items-center justify-center min-w-[19px] h-[19px] px-1.5 rounded-full text-[10px] font-bold leading-none shrink-0 shadow-sm ${colorClasses} ${className}`}
+      className={`flex items-center justify-center px-1 font-mono text-[9px] font-bold leading-none shrink-0 rounded-none ${colorClasses} ${className}`}
+      style={{ minWidth: '16px', height: '16px' }}
     >
-      {count > 9 ? '9+' : count}
+      {count}
     </span>
   );
 }
@@ -150,14 +152,13 @@ function ExpeditionsFloatingDock({ user }) {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const allRelevant = [...organized, ...joined];
 
-  // Fix 1: Reduced poll interval slightly to match immediate expectation, updated tracking definitions
   const unreadQueries = useQueries({
     queries: allRelevant.map((trek) => ({
       queryKey: ['dock-chat-unread', trek.id],
       queryFn: () => chatAPI.listMessages(trek.id),
       enabled: !!user,
-      refetchInterval: 5000, // Speed up background checks to pick up messages cleaner
-      staleTime: 0,          // Treat it as instantly stale to guarantee fresh checks on syncs
+      refetchInterval: 5000,
+      staleTime: 0,
       refetchOnWindowFocus: true,
     })),
   });
@@ -194,7 +195,6 @@ function ExpeditionsFloatingDock({ user }) {
   if (!user) return null;
   if (allRelevant.length === 0) return null;
 
-  // Fix 2: Changed index-matching fallback to dynamic ID mapping to safely isolate updating states
   const unreadByTrek = {};
   allRelevant.forEach((trek, idx) => {
     const queryResult = unreadQueries[idx];
@@ -204,7 +204,6 @@ function ExpeditionsFloatingDock({ user }) {
 
     unreadByTrek[trek.id] = msgs.filter((m) => {
       const isOwnMessage = user && String(m.sender) === String(user.id);
-      // Ensure precise matching across systems by validating both accurate timestamp updates 
       const messageTime = new Date(m.created_at || m.timestamp).getTime();
       return !isOwnMessage && messageTime > lastSeenTime;
     }).length;
@@ -223,65 +222,65 @@ function ExpeditionsFloatingDock({ user }) {
   const renderTrekRow = (trek, { showPending }, index) => {
     const unreadCount = unreadByTrek[trek.id] || 0;
     const pendingCount = showPending ? (pendingByTrek[trek.id] || 0) : 0;
+    const hasAlert = unreadCount > 0 || pendingCount > 0;
     return (
       <motion.div
         key={trek.id}
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, delay: index * 0.04 }}
+        transition={{ duration: 0.2, delay: index * 0.03 }}
       >
         <Link
           to={`/trek/${trek.id}`}
           onClick={() => setIsOpen(false)}
-          className="flex items-center gap-3 px-4 py-3 mx-2 my-1 rounded-2xl hover:bg-white/[0.06] transition duration-200 no-underline group"
+          className={`flex items-center gap-3 px-4 py-3 border-b border-[#141416]/60 hover:bg-[#E8FF00]/5 transition duration-150 no-underline group ${hasAlert ? 'border-l border-l-primary' : ''}`}
         >
-          <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-dark-bg transition duration-200">
+          <span className="w-8 h-8 border border-[#1C1C1E] text-dark-muted flex items-center justify-center shrink-0 group-hover:border-primary group-hover:text-primary transition duration-150 bg-[#000000]">
             <Settings className="w-3.5 h-3.5" />
           </span>
           <span className="flex-1 min-w-0 text-left">
-            <span className="block text-sm font-semibold text-dark-text group-hover:text-primary transition duration-200 truncate">
+            <span className="block text-xs font-bold text-dark-text group-hover:text-primary transition duration-150 truncate uppercase font-sans">
               {trek.title}
             </span>
-            <span className="flex items-center gap-1 text-[11px] text-dark-muted truncate">
-              <Calendar className="w-3 h-3 shrink-0" />
-              {new Date(trek.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+            <span className="flex items-center gap-1.5 text-[10px] text-dark-muted font-mono tracking-tight truncate mt-0.5">
+              <span>{new Date(trek.date).toISOString().split('T')[0]}</span>
               {unreadCount > 0 && (
-                <span className="text-primary font-semibold ml-1">
-                  • {unreadCount} new message{unreadCount > 1 ? 's' : ''}
+                <span className="text-primary font-semibold">
+                  [+{unreadCount} MSG]
                 </span>
               )}
               {pendingCount > 0 && (
-                <span className="text-yellow-400 font-semibold ml-1">
-                  • {pendingCount} pending
+                <span className="text-primary font-semibold">
+                  [+{pendingCount} REQ]
                 </span>
               )}
             </span>
           </span>
-          <div className="flex items-center gap-1 shrink-0">
-            <Badge count={pendingCount} color="accent" />
-            <Badge count={unreadCount} color="red" />
+          <div className="flex items-center gap-1 shrink-0 font-mono">
+            {pendingCount > 0 && <span className="text-[10px] text-primary font-bold">[!]</span>}
+            {unreadCount > 0 && <span className="text-[10px] text-primary font-bold">[{unreadCount}]</span>}
           </div>
-          <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition duration-200" />
+          <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition duration-150" />
         </Link>
       </motion.div>
     );
   };
 
   return (
-    <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-3">
+    <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-3 font-mono">
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 12 }}
-            transition={{ type: 'spring', duration: 0.35, bounce: 0.15 }}
-            className="w-80 max-w-[calc(100vw-32px)] max-h-[70vh] overflow-y-auto bg-white/[0.05] backdrop-blur-2xl border border-white/[0.08] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] py-2"
+            exit={{ opacity: 0, scale: 0.98, y: 8 }}
+            transition={{ duration: 0.2 }}
+            className="w-80 max-w-[calc(100vw-32px)] max-h-[70vh] overflow-y-auto bg-[#0A0A0C] border border-[#1C1C1E] rounded-none shadow-[0_15px_50px_rgba(0,0,0,0.8)] py-3"
           >
             {organized.length > 0 && (
               <div>
-                <div className="px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-dark-muted sticky top-0 bg-transparent">
-                  Organizing ({organized.length})
+                <div className="px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-dark-muted sticky top-0 bg-[#0A0A0C] border-b border-[#1C1C1E]/50">
+                  SYS // ORGANIZING ({organized.length})
                 </div>
                 <div>
                   {organized.map((trek, idx) => renderTrekRow(trek, { showPending: true }, idx))}
@@ -289,9 +288,9 @@ function ExpeditionsFloatingDock({ user }) {
               </div>
             )}
             {joined.length > 0 && (
-              <div>
-                <div className="px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-dark-muted sticky top-0 bg-transparent">
-                  Joined ({joined.length})
+              <div className="mt-2">
+                <div className="px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-dark-muted sticky top-0 bg-[#0A0A0C] border-b border-[#1C1C1E]/50">
+                  SYS // JOINED ({joined.length})
                 </div>
                 <div>
                   {joined.map((trek, idx) => renderTrekRow(trek, { showPending: false }, idx))}
@@ -305,31 +304,31 @@ function ExpeditionsFloatingDock({ user }) {
       <motion.button
         whileTap={{ scale: 0.97 }}
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex items-center gap-3 bg-primary text-dark-bg rounded-full shadow-[0_10px_40px_rgba(232,255,0,0.25)] px-5 py-3.5 hover:bg-primary-hover transition duration-300 max-w-[calc(100vw-32px)] focus:outline-none"
+        className="relative flex items-center gap-3 bg-primary text-dark-bg rounded-none border border-transparent px-4 py-3 hover:bg-primary-hover transition duration-200 max-w-[calc(100vw-32px)] focus:outline-none"
         title="Your Expeditions"
         aria-label="Your Expeditions"
         aria-expanded={isOpen}
       >
-        <span className="w-9 h-9 rounded-full bg-dark-bg text-primary flex items-center justify-center shrink-0">
-          <Settings className="w-4 h-4" />
+        <span className="w-8 h-8 bg-dark-bg text-primary flex items-center justify-center shrink-0 border border-primary/20">
+          <Settings className="w-3.5 h-3.5" />
         </span>
         <span className="hidden sm:block text-left">
-          <span className="block text-[10px] font-bold uppercase tracking-wider">
-            Your Expeditions
+          <span className="block text-[9px] font-bold uppercase tracking-wider text-dark-bg/85">
+            SYS // EXPEDITIONS
           </span>
-          <span className="block max-w-[200px] truncate text-sm font-bold">
-            {organized.length} organizing • {joined.length} joined
+          <span className="block max-w-[200px] truncate text-xs font-bold uppercase">
+            {organized.length} ORG • {joined.length} JOINED
           </span>
         </span>
         {isOpen ? (
-          <ChevronUp className="w-4 h-4 shrink-0" />
+          <ChevronUp className="w-3.5 h-3.5 shrink-0" />
         ) : (
-          <ArrowRight className="w-4 h-4 shrink-0" />
+          <ArrowRight className="w-3.5 h-3.5 shrink-0" />
         )}
         <Badge
           count={totalNotifications}
           color="red"
-          className="absolute -top-1.5 -right-1.5 border-2 border-dark-bg"
+          className="absolute -top-1 -right-1 border border-[#000000]"
         />
       </motion.button>
     </div>
@@ -359,7 +358,7 @@ function MainLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-dark-bg">
+    <div className="min-h-screen flex flex-col bg-dark-bg text-dark-text">
       <NavigationBar user={currentUser} onLogout={handleLogout} />
       <ExpeditionsFloatingDock user={currentUser} />
 
@@ -391,8 +390,8 @@ function MainLayout() {
         </Suspense>
       </main>
 
-      <footer className="py-6 text-center text-xs sm:text-sm text-dark-muted/60 mt-auto select-none">
-        <p>&copy; {new Date().getFullYear()} RallyGrid. Adventure awaits.</p>
+      <footer className="py-8 text-center text-xs text-dark-muted/50 border-t border-[#1C1C1E] mt-auto select-none font-mono">
+        <p>&copy; {new Date().getFullYear()} RALLYGRID // COORD_NET // ALL RIGHTS RESERVED.</p>
       </footer>
     </div>
   );

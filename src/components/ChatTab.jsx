@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Send, MapPin, Paperclip, Info, Image as ImageIcon, X } from 'lucide-react';
 import { chatAPI, authAPI, fixMediaUrl } from '../api';
 
-// Merge incoming messages into existing state by id instead of replacing the
-// array outright. This is critical: if the backend paginates listMessages
-// (e.g. only returns the most recent page), a hard `setMessages(fresh)` would
-// silently drop every older message that isn't in that page. Merging by id
-// guarantees messages only ever accumulate, never vanish, while still picking
-// up edits (e.g. profile updates) on existing ids.
 function mergeMessages(prev, incoming) {
   if (!incoming || incoming.length === 0) return prev;
   const map = new Map();
@@ -20,7 +14,6 @@ function mergeMessages(prev, incoming) {
 }
 
 export default function ChatTab({ trekId, members }) {
-  const queryClient = useQueryClient();
   const currentUser = authAPI.getCurrentUser();
   
   const [messages, setMessages] = useState([]);
@@ -35,7 +28,6 @@ export default function ChatTab({ trekId, members }) {
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Load message logs from REST on mount
   const { data: initialMessages = [] } = useQuery({
     queryKey: ['chatMessages', trekId],
     queryFn: () => chatAPI.listMessages(trekId),
@@ -43,15 +35,14 @@ export default function ChatTab({ trekId, members }) {
 
   useEffect(() => {
     if (initialMessages.length > 0) {
-      setMessages(prev => mergeMessages(prev, initialMessages));
+      Promise.resolve().then(() => {
+        setMessages(prev => mergeMessages(prev, initialMessages));
+      });
     }
   }, [initialMessages]);
 
-  // WebSocket Connection
   useEffect(() => {
     const wsUrl = chatAPI.getWebSocketUrl(trekId);
-    
-    // Fallback: If Channels is disabled on backend, we will just poll HTTP every 5 seconds
     let pollInterval = null;
     
     try {
@@ -70,7 +61,6 @@ export default function ChatTab({ trekId, members }) {
           return;
         }
         
-        // Handle profile updates
         if (data.type === 'profile_update') {
           const profileUpdate = data.data;
           setMessages(prev => 
@@ -85,7 +75,6 @@ export default function ChatTab({ trekId, members }) {
         }
         
         setMessages(prev => {
-          // Prevent duplicates
           if (prev.some(m => m.id === data.id)) return prev;
           return [...prev, data];
         });
@@ -93,7 +82,6 @@ export default function ChatTab({ trekId, members }) {
 
       socket.onclose = () => {
         setWsConnected(false);
-        // Start HTTP polling if socket closes (meaning backend doesn't support websockets locally)
         pollInterval = setInterval(async () => {
           try {
             const fresh = await chatAPI.listMessages(trekId);
@@ -103,14 +91,11 @@ export default function ChatTab({ trekId, members }) {
           }
         }, 5000);
       };
-
-      socket.onerror = () => {
-        setWsConnected(false);
-        console.error('WebSocket error for group:', trekId);
-      };
     } catch (e) {
       console.warn("WebSocket initiation failed. Falling back to HTTP polling.", e);
-      setWsConnected(false);
+      Promise.resolve().then(() => {
+        setWsConnected(false);
+      });
       pollInterval = setInterval(async () => {
         try {
           const fresh = await chatAPI.listMessages(trekId);
@@ -127,23 +112,18 @@ export default function ChatTab({ trekId, members }) {
     };
   }, [trekId]);
 
-  // Scroll to bottom
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Mark this trek's chat as "seen" whenever messages are viewed here.
-  // The floating "Manage Expeditions" dock (App.jsx) reads this timestamp
-  // to compute unread message badges per expedition.
   useEffect(() => {
     try {
       localStorage.setItem(`trekkar_chat_last_seen_${trekId}`, new Date().toISOString());
-    } catch (e) {
+    } catch {
       // localStorage unavailable (e.g. private browsing) - safe to ignore
     }
   }, [messages, trekId]);
 
-  // HTTP fallback mutation for sending message
   const sendMessageMutation = useMutation({
     mutationFn: ({ content, type, extra }) => chatAPI.sendMessage(trekId, content, type, extra),
     onSuccess: (data) => {
@@ -159,15 +139,13 @@ export default function ChatTab({ trekId, members }) {
     const textContent = uploadUrl ? (inputVal || uploadName || 'Attachment') : inputVal;
     
     if (wsConnected && wsRef.current) {
-      // Send via WebSocket
       wsRef.current.send(JSON.stringify({
         message_type: msgType,
         content: textContent,
         file_url: uploadUrl,
-        token_user_id: currentUser.id  // Fallback identifier
+        token_user_id: currentUser.id
       }));
     } else {
-      // Fallback to HTTP POST
       sendMessageMutation.mutate({
         content: textContent,
         type: msgType,
@@ -217,7 +195,7 @@ export default function ChatTab({ trekId, members }) {
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
-          const locContent = `GPS Location Shared: [${lat.toFixed(4)}, ${lng.toFixed(4)}]`;
+          const locContent = `GPS Coordinates Shared: [${lat.toFixed(5)}, ${lng.toFixed(5)}]`;
           
           if (wsConnected && wsRef.current) {
             wsRef.current.send(JSON.stringify({
@@ -259,12 +237,12 @@ export default function ChatTab({ trekId, members }) {
   };
 
   return (
-    <div className="glass-panel border border-dark-border/30 rounded-xl overflow-hidden flex flex-col h-[60vh]">
+    <div className="border border-[#1C1C1E] bg-[#0A0A0C] rounded-none overflow-hidden flex flex-col h-[60vh] font-mono text-xs text-left">
       {/* Header bar / status */}
-      <div className="px-3 sm:px-5 py-3 border-b border-dark-border/40 flex items-center justify-between text-[11px] sm:text-xs text-dark-muted bg-dark-card/40 select-none">
+      <div className="px-3 sm:px-5 py-3 border-b border-[#1C1C1E] flex items-center justify-between text-[10px] text-dark-muted bg-[#050505] select-none uppercase">
         <div className="flex items-center gap-1.5 font-bold truncate max-w-[70%]">
-          <span className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 ${wsConnected ? 'bg-primary' : 'bg-yellow-500 animate-pulse'}`} />
-          <span className="truncate">{wsConnected ? 'Real-time Channel Connected' : 'HTTP Sync Mode (Active)'}</span>
+          <span className={`w-1.5 h-1.5 shrink-0 rounded-none ${wsConnected ? 'bg-primary animate-pulse' : 'bg-yellow-500'}`} />
+          <span className="truncate">{wsConnected ? 'SYS // Real-time channel active' : 'SYS // HTTP Polling Mode active'}</span>
         </div>
         <span className="shrink-0">{members?.length || 0} online</span>
       </div>
@@ -273,8 +251,8 @@ export default function ChatTab({ trekId, members }) {
       <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-dark-muted p-4">
-            <Info className="w-8 h-8 opacity-40 mb-2" />
-            <p className="text-xs">No chat logs yet. Say hello to your squad!</p>
+            <Info className="w-6 h-6 opacity-40 mb-2 text-primary" />
+            <p className="font-sans">No chat logs yet. Type a command or message to broadcast.</p>
           </div>
         ) : (
           messages.map((msg) => {
@@ -286,18 +264,18 @@ export default function ChatTab({ trekId, members }) {
             return (
               <div 
                 key={msg.id} 
-                className={`flex gap-2 sm:get-3 text-left ${isMe ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-2 sm:gap-3 text-left ${isMe ? 'justify-end' : 'justify-start'}`}
               >
                 {!isMe && (
                   profilePic ? (
                     <img 
                       src={profilePic} 
                       alt={senderName}
-                      className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-primary/20 self-end shrink-0"
+                      className="w-7 h-7 sm:w-8 sm:h-8 object-cover border border-[#1C1C1E] self-end shrink-0 rounded-none"
                       title={senderName}
                     />
                   ) : (
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center font-bold text-xs uppercase self-end shrink-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-[#000000] border border-[#1C1C1E] text-primary flex items-center justify-center font-bold text-[10px] uppercase self-end shrink-0 rounded-none">
                       {senderName ? senderName[0] : '?'}
                     </div>
                   )
@@ -306,60 +284,60 @@ export default function ChatTab({ trekId, members }) {
                 <div className="max-w-[85%] sm:max-w-[70%] space-y-1">
                   {!isMe && (
                     <div className="flex items-center gap-2 ml-1">
-                      <span className="text-[10px] text-dark-muted font-semibold truncate max-w-[120px]">{senderName}</span>
+                      <span className="text-[9px] text-dark-muted font-bold truncate max-w-[120px] uppercase">{senderName}</span>
                       {msg.sender_profile?.is_verified && (
-                        <span className="text-[9px] text-primary font-bold shrink-0">✓ Verified</span>
+                        <span className="text-[8px] text-primary font-bold shrink-0 uppercase">[ Verified ]</span>
                       )}
                     </div>
                   )}
                   
-                  <div className={`p-2.5 sm:p-3 rounded-xl border text-sm leading-relaxed break-words ${
+                  <div className={`p-2.5 sm:p-3 border text-[13px] leading-relaxed break-words rounded-none ${
                     isMe 
-                      ? 'bg-primary border-primary/20 text-dark-bg font-medium rounded-br-none' 
-                      : 'bg-dark-card border-dark-border/50 text-dark-text rounded-bl-none'
+                      ? 'bg-primary border-primary/20 text-dark-bg font-bold font-sans' 
+                      : 'bg-[#000000] border-[#1C1C1E] text-dark-text font-sans'
                   }`}>
                     {msg.message_type === 'LOCATION' && (
-                      <div className="space-y-2">
-                        <p className="flex items-center gap-1 font-bold text-xs">
+                      <div className="space-y-2 font-mono text-xs">
+                        <p className="flex items-center gap-1 font-bold text-xs uppercase text-primary">
                           <MapPin className="w-4 h-4 shrink-0" />
-                          <span>Coordinates Pin Shared</span>
+                          <span>COORDINATES SHARED</span>
                         </p>
                         <p className="text-xs opacity-90">{msg.content}</p>
                         <a 
                           href={`https://www.openstreetmap.org/?mlat=${msg.latitude}&mlon=${msg.longitude}#map=16/${msg.latitude}/${msg.longitude}`} 
                           target="_blank" 
                           rel="noreferrer"
-                          className={`inline-block text-[10px] font-bold underline ${isMe ? 'text-dark-bg hover:opacity-80' : 'text-primary'}`}
+                          className={`inline-block text-[10px] font-bold underline ${isMe ? 'text-dark-bg hover:opacity-85' : 'text-primary'}`}
                         >
-                          View OpenStreetMap
+                          OPEN OSM_MAP LINK
                         </a>
                       </div>
                     )}
 
                     {msg.message_type === 'IMAGE' && (
-                      <div className="space-y-2">
+                      <div className="space-y-2 font-sans">
                         <a href={fileUrl} target="_blank" rel="noreferrer" className="block">
                           <img
                             src={fileUrl}
                             alt={msg.content || 'Shared image'}
-                            className="max-h-64 w-full rounded-lg object-cover border border-white/10"
+                            className="max-h-64 w-full object-cover border border-[#1C1C1E] rounded-none filter grayscale hover:grayscale-0 transition duration-200"
                           />
                         </a>
-                        {msg.content && <p className="text-xs font-semibold">{msg.content}</p>}
+                        {msg.content && <p className="text-xs font-semibold mt-1">{msg.content}</p>}
                       </div>
                     )}
 
                     {msg.message_type === 'DOCUMENT' && (
-                      <div className="space-y-1.5">
-                        <p className="flex items-center gap-1 font-bold text-xs">
+                      <div className="space-y-1.5 font-mono text-xs">
+                        <p className="flex items-center gap-1 font-bold text-xs uppercase text-primary">
                           <Paperclip className="w-4 h-4 shrink-0" />
-                          <span>Attachment Link</span>
+                          <span>ATTACHMENT LINK</span>
                         </p>
                         <a 
                           href={fileUrl} 
                           target="_blank" 
                           rel="noreferrer"
-                          className="block text-xs underline break-all font-semibold"
+                          className="block text-xs underline break-all font-semibold hover:opacity-80"
                         >
                           {msg.content}
                         </a>
@@ -371,7 +349,7 @@ export default function ChatTab({ trekId, members }) {
                     )}
                   </div>
                   
-                  <p className={`text-[9px] text-dark-muted ${isMe ? 'text-right mr-1' : 'ml-1'}`}>
+                  <p className={`text-[8px] text-dark-muted font-mono ${isMe ? 'text-right mr-1' : 'ml-1'}`}>
                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
@@ -383,17 +361,17 @@ export default function ChatTab({ trekId, members }) {
       </div>
 
       {(isUploading || uploadUrl) && (
-        <div className="px-3 sm:px-5 py-2.5 border-t border-dark-border/30 bg-dark-bg/60 flex items-center justify-between text-xs gap-2.5">
+        <div className="px-3 sm:px-5 py-2.5 border-t border-[#1C1C1E] bg-[#000000]/60 flex items-center justify-between text-xs gap-2.5 uppercase font-mono">
           <div className="flex items-center gap-2 min-w-0 text-dark-muted">
             {uploadType.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-primary shrink-0" /> : <Paperclip className="w-4 h-4 text-primary shrink-0" />}
-            <span className="truncate">
-              {isUploading ? 'Uploading attachment...' : uploadName || 'Attachment ready'}
+            <span className="truncate text-[10px]">
+              {isUploading ? 'SYS // Uploading packet...' : uploadName || 'Packet buffer ready'}
             </span>
           </div>
           <button 
             type="button"
             onClick={clearAttachment} 
-            className="text-xs text-primary hover:text-primary-hover font-bold shrink-0 px-1"
+            className="text-xs text-primary hover:text-red-400 font-bold shrink-0 px-1"
           >
             <X className="w-4 h-4" />
           </button>
@@ -401,16 +379,16 @@ export default function ChatTab({ trekId, members }) {
       )}
 
       {/* Input controls form */}
-      <form onSubmit={handleSend} className="p-2 sm:p-4 border-t border-dark-border/30 bg-dark-bg/30 flex items-center gap-1.5 sm:gap-3">
+      <form onSubmit={handleSend} className="p-2 sm:p-4 border-t border-[#1C1C1E] bg-[#000000] flex items-center gap-1.5 sm:gap-3 rounded-none">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className={`p-2 sm:p-2.5 rounded-lg border transition duration-200 shrink-0 ${
-            uploadUrl ? 'border-primary/40 bg-primary/10 text-primary' : 'border-dark-border text-dark-muted hover:border-dark-border/80'
+          className={`p-2 sm:p-2.5 border transition duration-150 shrink-0 rounded-none ${
+            uploadUrl ? 'border-primary/40 bg-primary/10 text-primary' : 'border-[#1C1C1E] text-dark-muted hover:border-primary hover:text-primary'
           }`}
           title="Add image or file"
         >
-          <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Paperclip className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
         </button>
         <input
           ref={fileInputRef}
@@ -423,24 +401,24 @@ export default function ChatTab({ trekId, members }) {
         <button
           type="button"
           onClick={handleShareLocation}
-          className="p-2 sm:p-2.5 rounded-lg border border-dark-border text-dark-muted hover:border-dark-border/80 transition duration-200 shrink-0"
-          title="Share Current Coordinates"
+          className="p-2 sm:p-2.5 border border-[#1C1C1E] text-dark-muted hover:border-primary hover:text-primary transition duration-150 shrink-0 rounded-none"
+          title="Share Coordinates Pin"
         >
-          <MapPin className="w-4 h-4 sm:w-5 sm:h-5" />
+          <MapPin className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
         </button>
 
         <input 
           type="text" 
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
-          placeholder={uploadUrl ? "Type link label..." : "Send a message..."}
-          className="flex-1 min-w-0 px-3 py-2 sm:px-4 sm:py-3 rounded-lg glass-input text-dark-text text-sm focus:outline-none"
+          placeholder={uploadUrl ? "Label attachment link..." : "Type message command..."}
+          className="flex-1 min-w-0 px-3 py-2 sm:px-4 sm:py-3 bg-[#0A0A0C] border border-[#1C1C1E] focus:border-primary text-dark-text text-xs focus:outline-none rounded-none font-mono placeholder:text-dark-muted-dim"
         />
 
         <button 
           type="submit" 
           disabled={!inputVal.trim() && !uploadUrl}
-          className="p-2.5 sm:p-3 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:hover:bg-primary text-dark-bg rounded-lg transition duration-200 shrink-0 shadow-md shadow-primary/20"
+          className="p-2.5 sm:p-3 bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:hover:bg-primary text-dark-bg rounded-none transition duration-150 shrink-0"
         >
           <Send className="w-4 h-4" />
         </button>

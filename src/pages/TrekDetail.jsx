@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -40,8 +40,19 @@ export default function TrekDetail() {
   const queryClient = useQueryClient();
   const currentUser = authAPI.getCurrentUser();
   const [activeTab, setActiveTab] = useState('chat');
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const [paymentError, setPaymentError] = useState(null);
+
+  // Defer state setting out of useEffect by reading from URL params on construction
+  const getInitialPaymentState = () => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      verifying: params.get('payment_status') === 'success' && !!params.get('session_id'),
+      error: params.get('payment_status') === 'cancel' ? 'Payment was cancelled. You must pay to join this gathering.' : null
+    };
+  };
+
+  const initialPaymentState = getInitialPaymentState();
+  const [verifyingPayment, setVerifyingPayment] = useState(initialPaymentState.verifying);
+  const [paymentError, setPaymentError] = useState(initialPaymentState.error);
   const [copiedShare, setCopiedShare] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editForm, setEditForm] = useState(null);
@@ -58,22 +69,18 @@ export default function TrekDetail() {
   });
 
   const isOrganizer = trek && currentUser && trek.organizer === currentUser.id;
-
-  // Determine if user is a group administrator (organizer OR has structural ADMIN role)
   const isGroupAdmin = trek?.is_group_admin || isOrganizer || (trek?.members?.some(
     (member) => member.user === currentUser?.id && member.role === 'ADMIN'
   ));
-
   const hasAccess = trek?.is_member || isOrganizer;
 
-  // Retrieve join requests if current user is organizer
   const { data: joinRequests = [] } = useQuery({
     queryKey: ['joinRequests', id],
     queryFn: () => treksAPI.listRequests(id),
     enabled: !!isOrganizer,
   });
 
-  // Mutations for join request approvals
+  // Mutations
   const handleRequestMutation = useMutation({
     mutationFn: ({ reqId, status }) => treksAPI.updateRequest(reqId, status),
     onSuccess: () => {
@@ -88,9 +95,7 @@ export default function TrekDetail() {
   const joinRequestMutation = useMutation({
     mutationFn: () => treksAPI.requestJoin(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ['trek', id],
-      });
+      queryClient.invalidateQueries({ queryKey: ['trek', id] });
     },
     onError: (err) => {
       alert(
@@ -151,19 +156,17 @@ export default function TrekDetail() {
     }
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment_status');
     const sessionId = params.get('session_id');
 
     if (paymentStatus === 'success' && sessionId) {
-      setVerifyingPayment(true);
       confirmPaymentMutation.mutate(sessionId);
     } else if (paymentStatus === 'cancel') {
-      setPaymentError('Payment was cancelled. You must pay to join this gathering.');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [id]);
+  }, [id, confirmPaymentMutation]);
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -174,19 +177,17 @@ export default function TrekDetail() {
         setIsMembersOpen(false);
       }
     }
-
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  // Mutation for updating group completion status
   const toggleCompletionMutation = useMutation({
     mutationFn: (newStatus) => treksAPI.update(id, { is_completed: newStatus }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trek', id] });
     },
     onError: (err) => {
-      alert(err.response?.data?.detail || 'Failed to update workshop completion status.');
+      alert(err.response?.data?.detail || 'Failed to update completion status.');
     }
   });
 
@@ -225,7 +226,6 @@ export default function TrekDetail() {
   const handleEditSubmit = (e) => {
     e.preventDefault();
     setEditError(null);
-
     const formData = new FormData();
     Object.entries(editForm).forEach(([key, value]) => {
       formData.append(key, value);
@@ -242,11 +242,11 @@ export default function TrekDetail() {
 
   if (isLoading || verifyingPayment) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <div className="w-9 h-9 border-[3px] border-primary/30 border-t-primary rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 font-mono text-xs">
+        <div className="w-8 h-8 border border-primary border-t-transparent animate-spin" />
         {verifyingPayment && (
-          <p className="text-xs font-bold uppercase tracking-widest text-primary animate-pulse">
-            Verifying payment with Stripe...
+          <p className="text-primary font-bold uppercase tracking-wider animate-pulse">
+            SYS // Confirming secure Stripe token transfer...
           </p>
         )}
       </div>
@@ -255,106 +255,101 @@ export default function TrekDetail() {
 
   if (isError || !trek) {
     return (
-      <div className="p-8 text-center rounded-[1.75rem] bg-red-500/[0.04] backdrop-blur-xl border border-red-400/20 text-red-300">
-        <p>Failed to load trek workspace details. Ensure you are an approved member.</p>
+      <div className="p-8 text-center bg-red-500/[0.03] border border-red-500/20 text-red-400 font-mono text-xs uppercase">
+        SYS_ERR // Access denied. Ensure you are an approved member.
       </div>
     );
   }
 
   if (trek && !hasAccess) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-xl mx-auto font-mono text-xs text-left">
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-7 shadow-[0_20px_60px_rgba(0,0,0,0.3)]"
+          className="border border-[#1C1C1E] bg-[#0A0A0C] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-none"
         >
           <div className="space-y-4">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
+              <div className="flex items-center gap-2 border-b border-[#1C1C1E] pb-3 mb-3">
+                <span className="text-[9px] font-bold px-2 py-0.5 border border-primary/20 bg-primary/5 text-primary uppercase">
                   {trek.difficulty}
                 </span>
                 {trek.is_private && (
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
+                  <span className="text-[9px] font-bold px-2 py-0.5 border border-red-500/20 bg-red-500/5 text-red-400 flex items-center gap-1">
                     <Lock className="w-2.5 h-2.5" />
-                    <span>Private</span>
+                    <span>PVT</span>
                   </span>
                 )}
+                <span className="ml-auto text-[9px] text-dark-muted">GATHERING_LOCK</span>
               </div>
 
-              <h1 className="text-3xl font-bold mt-3 text-dark-text">
+              <h1 className="text-lg font-bold text-dark-text uppercase tracking-wide font-sans">
                 {trek.title}
               </h1>
 
-              <p className="text-dark-muted mt-2">
+              <p className="text-dark-muted mt-2 leading-relaxed font-sans text-[11px]">
                 {trek.description}
               </p>
             </div>
 
-            <div className="border-t border-white/[0.07] pt-4 space-y-2 text-dark-text">
+            <div className="border-t border-[#1C1C1E]/60 pt-4 space-y-2 text-dark-text">
               <p>
-                <strong>Organizer:</strong> {trek.organizer_username}
+                <strong>ORGANIZER:</strong> {trek.organizer_username}
               </p>
-
               <p>
-                <strong>Date:</strong>{' '}
-                {new Date(trek.date).toLocaleDateString()}
+                <strong>DATE:</strong> {new Date(trek.date).toISOString().split('T')[0]}
               </p>
-
               <p>
-                <strong>Members:</strong>{' '}
-                {trek.members_count} / {trek.capacity}
+                <strong>MEMBERS REGISTERED:</strong> {trek.members_count} / {trek.capacity}
               </p>
             </div>
 
             {paymentError && (
-              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center gap-2">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{paymentError}</span>
               </div>
             )}
 
-            {trek.join_request_status === 'PENDING' ? (
-              <button
-                disabled
-                className="w-full py-3.5 rounded-full bg-yellow-400/10 border border-yellow-400/20 text-yellow-300 font-semibold"
-              >
-                Request Pending
-              </button>
-            ) : trek.join_request_status === 'REJECTED' ? (
-              <button
-                disabled
-                className="w-full py-3.5 rounded-full bg-red-500/10 border border-red-400/20 text-red-300 font-semibold"
-              >
-                Request Rejected
-              </button>
-            ) : trek.capacity > 20 ? (
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => checkoutMutation.mutate()}
-                disabled={checkoutMutation.isPending}
-                className="w-full py-3.5 rounded-full bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(232,255,0,0.2)]"
-              >
-                <Send className="w-4 h-4" />
-                {checkoutMutation.isPending
-                  ? 'Redirecting to Stripe...'
-                  : 'Pay $10 to Join'}
-              </motion.button>
-            ) : (
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => joinRequestMutation.mutate()}
-                disabled={joinRequestMutation.isPending}
-                className="w-full py-3.5 rounded-full bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 shadow-[0_10px_30px_rgba(232,255,0,0.2)]"
-              >
-                <Send className="w-4 h-4" />
-                {joinRequestMutation.isPending
-                  ? 'Sending Request...'
-                  : 'Request To Join'}
-              </motion.button>
-            )}
+            <div className="pt-2">
+              {trek.join_request_status === 'PENDING' ? (
+                <button
+                  disabled
+                  className="w-full py-3 bg-[#000000] border border-[#1C1C1E] text-yellow-400/70 font-bold uppercase tracking-wider cursor-not-allowed rounded-none"
+                >
+                  REQUEST_PENDING_APPROVAL
+                </button>
+              ) : trek.join_request_status === 'REJECTED' ? (
+                <button
+                  disabled
+                  className="w-full py-3 bg-transparent border border-red-500/20 text-red-400/50 font-bold uppercase tracking-wider cursor-not-allowed rounded-none"
+                >
+                  LINK_REJECTED
+                </button>
+              ) : trek.capacity > 20 ? (
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => checkoutMutation.mutate()}
+                  disabled={checkoutMutation.isPending}
+                  className="w-full py-3 bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 hover:bg-primary-hover transition duration-150 uppercase tracking-widest rounded-none"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {checkoutMutation.isPending ? 'REDIRECTING TO STRIPE...' : 'PAY $10 TO JOIN'}
+                </motion.button>
+              ) : (
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => joinRequestMutation.mutate()}
+                  disabled={joinRequestMutation.isPending}
+                  className="w-full py-3 bg-primary text-dark-bg font-bold flex items-center justify-center gap-2 hover:bg-primary-hover transition duration-150 uppercase tracking-widest rounded-none"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {joinRequestMutation.isPending ? 'SENDING REQUEST...' : 'REQUEST TO JOIN'}
+                </motion.button>
+              )}
+            </div>
           </div>
         </motion.div>
       </div>
@@ -372,22 +367,22 @@ export default function TrekDetail() {
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start font-mono text-xs text-left">
       {/* Sidebar - Group Info */}
       <div className="space-y-6 lg:col-span-1">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="relative rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
+          className="relative border border-[#1C1C1E] bg-[#0A0A0C] p-5 shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-none"
         >
-          {/* Gathering actions (share / edit / delete) */}
+          {/* Action Menu */}
           <div className="absolute right-4 top-4 z-20" ref={workspaceMenuRef}>
             <button
               type="button"
               onClick={() => setIsWorkspaceMenuOpen((open) => !open)}
-              className="h-8 w-8 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text flex items-center justify-center transition duration-150"
-              title="Gathering actions"
+              className="h-8 w-8 bg-[#000000] border border-[#1C1C1E] text-dark-muted hover:text-primary flex items-center justify-center transition duration-150 rounded-none"
+              title="Workspace actions"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -395,22 +390,22 @@ export default function TrekDetail() {
             <AnimatePresence>
               {isWorkspaceMenuOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                  transition={{ duration: 0.16 }}
-                  className="absolute right-0 top-full mt-2 w-48 rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-1.5 z-50"
+                  initial={{ opacity: 0, scale: 0.98, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98, y: -4 }}
+                  transition={{ duration: 0.1 }}
+                  className="absolute right-0 top-full mt-1.5 w-48 bg-[#0A0A0C] border border-[#1C1C1E] shadow-2xl p-1 z-50 rounded-none"
                 >
                   <button
                     type="button"
                     onClick={handleShareGathering}
-                    className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-primary hover:bg-white/[0.06] transition-colors flex items-center justify-between"
+                    className="w-full px-3 py-2 text-[10px] font-bold text-dark-muted hover:text-primary hover:bg-[#E8FF00]/5 transition-colors flex items-center justify-between uppercase"
                   >
                     <span className="flex items-center gap-2">
                       <Share2 className="w-3.5 h-3.5" />
-                      {copiedShare ? 'Link Copied' : 'Share Gathering'}
+                      {copiedShare ? 'Copied' : 'Share Workspace'}
                     </span>
-                    {copiedShare && <Check className="w-3.5 h-3.5 text-green-400" />}
+                    {copiedShare && <Check className="w-3.5 h-3.5 text-primary" />}
                   </button>
 
                   {isGroupAdmin && (
@@ -418,19 +413,19 @@ export default function TrekDetail() {
                       <button
                         type="button"
                         onClick={openEditModal}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-dark-muted hover:text-yellow-300 hover:bg-white/[0.06] transition-colors flex items-center gap-2"
+                        className="w-full px-3 py-2 border-t border-[#1C1C1E]/50 mt-1 pt-2 text-[10px] font-bold text-dark-muted hover:text-primary hover:bg-[#E8FF00]/5 transition-colors flex items-center gap-2 uppercase"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
-                        Edit Gathering
+                        Modify Settings
                       </button>
                       <button
                         type="button"
                         onClick={handleDeleteGathering}
                         disabled={deleteGatheringMutation.isPending}
-                        className="w-full px-3 py-2.5 rounded-xl text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="w-full px-3 py-2 border-t border-[#1C1C1E]/50 mt-1 pt-2 text-[10px] font-bold text-red-400 hover:text-red-300 hover:bg-red-500/15 transition-colors flex items-center gap-2 disabled:opacity-50 uppercase"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        {deleteGatheringMutation.isPending ? 'Deleting...' : 'Delete Gathering'}
+                        {deleteGatheringMutation.isPending ? 'TERMINATING...' : 'Terminate Link'}
                       </button>
                     </>
                   )}
@@ -440,38 +435,37 @@ export default function TrekDetail() {
           </div>
 
           <div className="space-y-4">
-            <div className="pr-10">
+            <div className="pr-8">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-primary/20 bg-primary/10 text-primary uppercase tracking-wide">
+                <span className="text-[9px] font-bold px-2 py-0.5 border border-primary/20 bg-primary/5 text-primary uppercase">
                   {trek.difficulty}
                 </span>
                 {trek.is_private && (
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border border-red-500/20 bg-red-500/10 text-red-400 flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" />
-                    <span>Private</span>
+                  <span className="text-[9px] font-bold px-2 py-0.5 border border-red-500/20 bg-red-500/5 text-red-400">
+                    PVT
                   </span>
                 )}
               </div>
-              <h2 className="text-xl font-bold text-dark-text tracking-tight mt-2">{trek.title}</h2>
-              <p className="text-xs text-dark-muted mt-1 leading-relaxed">{trek.description}</p>
+              <h2 className="text-sm font-bold text-dark-text tracking-wide mt-2.5 font-sans uppercase">{trek.title}</h2>
+              <p className="text-xs text-dark-muted mt-1 leading-relaxed font-sans">{trek.description}</p>
             </div>
 
-            <div className="space-y-2.5 text-xs text-dark-muted border-t border-white/[0.07] pt-4">
+            <div className="space-y-2.5 text-xs text-dark-muted border-t border-[#1C1C1E] pt-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-primary" />
-                <span>Date: {new Date(trek.date).toLocaleDateString()}</span>
+                <span>Date: {new Date(trek.date).toISOString().split('T')[0]}</span>
               </div>
 
               <div className="relative" ref={membersMenuRef}>
                 <button
                   type="button"
                   onClick={() => setIsMembersOpen((open) => !open)}
-                  className="w-full h-10 px-3 rounded-full bg-white/[0.05] hover:bg-white/[0.09] border border-white/[0.08] text-dark-text font-bold text-xs flex items-center gap-2 transition duration-150"
+                  className="w-full h-10 px-3 bg-[#000000] hover:bg-[#E8FF00]/5 border border-[#1C1C1E] text-dark-text font-bold text-xs flex items-center gap-2 transition duration-150 rounded-none focus:outline-none"
                   title="Group members"
                 >
                   <Users className="w-4 h-4 text-primary shrink-0" />
-                  <span className="flex-1 text-left">Group Members</span>
-                  <span className="px-2 py-0.5 rounded-full bg-primary/15 text-primary font-bold">
+                  <span className="flex-1 text-left uppercase text-[10px]">Registered Members</span>
+                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary font-bold">
                     {trek.members?.length || 0}/{trek.capacity}
                   </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-dark-muted transition-transform shrink-0 ${isMembersOpen ? 'rotate-180' : ''}`} />
@@ -480,15 +474,15 @@ export default function TrekDetail() {
                 <AnimatePresence>
                   {isMembersOpen && (
                     <motion.div
-                      initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                      transition={{ duration: 0.16 }}
-                      className="absolute left-0 top-full mt-2 w-[min(19rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded-2xl bg-[#101010]/95 backdrop-blur-2xl border border-white/10 shadow-2xl p-2 z-50"
+                      initial={{ opacity: 0, scale: 0.98, y: -4 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.98, y: -4 }}
+                      transition={{ duration: 0.1 }}
+                      className="absolute left-0 top-full mt-1.5 w-full max-h-80 overflow-y-auto bg-[#0A0A0C] border border-[#1C1C1E] shadow-2xl p-2 z-50 rounded-none font-mono"
                     >
-                      <div className="px-2.5 py-2 flex items-center justify-between border-b border-white/[0.06] mb-1">
-                        <span className="text-xs font-bold text-dark-text">Group Members</span>
-                        <span className="text-[10px] font-bold text-primary">{trek.members?.length || 0} / {trek.capacity}</span>
+                      <div className="px-2.5 py-2 flex items-center justify-between border-b border-[#1C1C1E]/50 mb-1 text-[9px] uppercase tracking-wider text-dark-muted font-bold">
+                        <span>Squad Registers</span>
+                        <span>{trek.members?.length || 0} / {trek.capacity}</span>
                       </div>
                       <div className="space-y-1">
                         {trek.members?.map((member) => (
@@ -496,28 +490,28 @@ export default function TrekDetail() {
                             key={member.id}
                             to={`/profile/${member.user}`}
                             onClick={() => setIsMembersOpen(false)}
-                            className="flex items-center justify-between gap-3 rounded-xl px-2.5 py-2 hover:bg-white/[0.06] transition duration-150"
+                            className="flex items-center justify-between gap-3 px-2 py-1.5 hover:bg-[#E8FF00]/5 border-b border-transparent hover:border-[#1C1C1E] transition duration-150 no-underline"
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               {member.profile_picture_url ? (
                                 <img
                                   src={fixMediaUrl(member.profile_picture_url)}
                                   alt={member.username}
-                                  className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                                  className="w-7 h-7 rounded-none object-cover border border-[#1C1C1E] shrink-0"
                                 />
                               ) : (
-                                <div className="w-8 h-8 rounded-full bg-primary/10 ring-1 ring-white/10 flex items-center justify-center text-primary font-bold uppercase shrink-0">
+                                <div className="w-7 h-7 bg-[#000000] border border-[#1C1C1E] flex items-center justify-center text-primary font-bold uppercase shrink-0">
                                   {member.username ? member.username[0] : '?'}
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <p className="text-xs font-bold text-dark-text truncate">{member.username}</p>
-                                <p className="text-[9px] text-dark-muted uppercase font-bold truncate">{member.experience_level}</p>
+                                <p className="text-[11px] font-bold text-dark-text truncate font-sans uppercase">{member.username}</p>
+                                <p className="text-[8px] text-dark-muted uppercase font-bold truncate">{member.experience_level}</p>
                               </div>
                             </div>
-                            <span className={`text-[9px] font-bold px-2 py-1 rounded-full border uppercase shrink-0 ${member.role === 'ADMIN'
-                                ? 'border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
-                                : 'border-white/10 bg-white/[0.03] text-dark-muted'
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 border uppercase shrink-0 ${member.role === 'ADMIN'
+                                ? 'border-primary/30 bg-primary/5 text-primary'
+                                : 'border-[#1C1C1E] bg-[#000000] text-dark-muted'
                               }`}>
                               {member.role}
                             </span>
@@ -531,7 +525,7 @@ export default function TrekDetail() {
 
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-primary" />
-                <span>Organizer: {trek.organizer_username}</span>
+                <span>ORGANIZER: {trek.organizer_username}</span>
               </div>
             </div>
           </div>
@@ -542,21 +536,21 @@ export default function TrekDetail() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: 0.02 }}
-          className={`rounded-[1.75rem] border p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)] ${trek.is_completed
-              ? 'bg-green-500/[0.04] border-green-500/20'
-              : 'bg-white/[0.04] border-white/[0.08]'
+          className={`border p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-none ${trek.is_completed
+              ? 'bg-green-950/5 border-green-500/20'
+              : 'bg-[#0A0A0C] border-[#1C1C1E]'
             }`}
         >
-          <h3 className="text-sm font-bold text-dark-text mb-2.5 flex items-center gap-1.5">
-            <CheckCircle2 className={`w-4.5 h-4.5 ${trek.is_completed ? 'text-green-400' : 'text-dark-muted'}`} />
-            <span>Workshop Status</span>
+          <h3 className="text-xs font-bold text-dark-text mb-2.5 flex items-center gap-1.5 uppercase tracking-wider">
+            <CheckCircle2 className={`w-4 h-4 ${trek.is_completed ? 'text-primary animate-pulse' : 'text-dark-muted'}`} />
+            <span>Telemetry Status</span>
           </h3>
 
           <div className="space-y-3">
-            <p className="text-xs text-dark-muted leading-relaxed">
+            <p className="text-xs text-dark-muted leading-relaxed font-sans text-[11px]">
               {trek.is_completed
-                ? "This workshop has been completed! Active members have received points and unlocked eligible badges."
-                : "This workspace is currently active. Once finished, group administrators can mark it finalized."
+                ? "This gathering has been finalized. System metrics have compiled points and rewards to squad profile registers."
+                : "This workspace is currently active. Once finished, group administrators can mark it closed."
               }
             </p>
 
@@ -566,19 +560,19 @@ export default function TrekDetail() {
                   <button
                     onClick={() => toggleCompletionMutation.mutate(false)}
                     disabled={toggleCompletionMutation.isPending}
-                    className="w-full py-2 px-4 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-dark-text font-semibold text-xs border border-white/[0.08] flex items-center justify-center gap-1.5 transition duration-150"
+                    className="w-full py-2 bg-[#000000] hover:bg-[#E8FF00]/5 text-dark-text hover:text-primary font-bold text-xs border border-[#1C1C1E] flex items-center justify-center gap-1.5 transition duration-150 rounded-none"
                   >
                     <Undo2 className="w-3.5 h-3.5" />
-                    <span>{toggleCompletionMutation.isPending ? 'Processing...' : 'Mark as Incomplete'}</span>
+                    <span>{toggleCompletionMutation.isPending ? 'PROCESSING...' : 'REOPEN WORKSPACE'}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => toggleCompletionMutation.mutate(true)}
                     disabled={toggleCompletionMutation.isPending}
-                    className="w-full py-2 px-4 rounded-full bg-green-500/20 hover:bg-green-500/30 text-green-300 font-bold text-xs border border-green-500/30 flex items-center justify-center gap-1.5 transition duration-150 shadow-[0_4px_12px_rgba(34,197,94,0.1)]"
+                    className="w-full py-2 bg-primary hover:bg-primary-hover text-dark-bg font-extrabold text-xs border border-transparent flex items-center justify-center gap-1.5 transition duration-150 rounded-none uppercase tracking-wider"
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>{toggleCompletionMutation.isPending ? 'Processing...' : 'Mark Workshop Completed'}</span>
+                    <span>{toggleCompletionMutation.isPending ? 'PROCESSING...' : 'CLOSE GATHERING'}</span>
                   </button>
                 )}
               </div>
@@ -592,58 +586,58 @@ export default function TrekDetail() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05 }}
-            className="rounded-[1.75rem] bg-white/[0.04] backdrop-blur-2xl border border-primary/15 p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.25)]"
+            className="bg-[#0A0A0C] border border-primary/20 p-5 text-left shadow-[0_15px_40px_rgba(0,0,0,0.6)] rounded-none"
           >
-            <h3 className="text-sm font-bold text-dark-text mb-3 flex items-center gap-1.5">
-              <UserCheck className="w-4.5 h-4.5 text-primary" />
-              <span>Pending Requests ({pendingRequests.length})</span>
+            <h3 className="text-xs font-bold text-dark-text mb-3 flex items-center gap-1.5 uppercase tracking-wider">
+              <UserCheck className="w-4 h-4 text-primary animate-pulse" />
+              <span>Squad Requests ({pendingRequests.length})</span>
             </h3>
 
             <div className="space-y-3">
               {pendingRequests.map((req) => (
-                <div key={req.id} className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-xs flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between gap-2">
+                <div key={req.id} className="p-3 bg-[#000000] border border-[#1C1C1E] text-xs flex flex-col gap-2.5 rounded-none">
+                  <div className="flex items-center justify-between gap-2 border-b border-[#1C1C1E]/60 pb-2">
                     <Link
                       to={`/profile/${req.user}`}
-                      className="flex items-center gap-2 group min-w-0"
+                      className="flex items-center gap-2 group min-w-0 no-underline"
                       title="View profile"
                     >
                       {req.profile_picture_url ? (
                         <img
                           src={req.profile_picture_url}
                           alt={req.username}
-                          className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10 shrink-0"
+                          className="w-7 h-7 rounded-none object-cover border border-[#1C1C1E] shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-primary/10 ring-1 ring-white/10 text-primary flex items-center justify-center font-bold uppercase shrink-0">
+                        <div className="w-7 h-7 bg-[#111] border border-[#1C1C1E] text-primary flex items-center justify-center font-bold uppercase shrink-0">
                           {req.username ? req.username[0] : '?'}
                         </div>
                       )}
-                      <div>
-                        <p className="font-bold text-dark-text group-hover:text-primary transition duration-150">
+                      <div className="min-w-0 text-left">
+                        <p className="font-bold text-dark-text group-hover:text-primary transition duration-150 truncate font-sans uppercase">
                           {req.username}
                         </p>
-                        <p className="text-[10px] text-dark-muted uppercase font-semibold">
-                          XP: {req.experience_level} • Rating: {req.rating}
+                        <p className="text-[8px] text-dark-muted font-bold">
+                          XP: {req.experience_level} • RT: {req.rating}
                         </p>
                       </div>
-                      <Eye className="w-3.5 h-3.5 text-dark-muted group-hover:text-primary transition duration-150 shrink-0" />
+                      <Eye className="w-3 h-3 text-dark-muted group-hover:text-primary transition duration-150 shrink-0 ml-1" />
                     </Link>
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRequestMutation.mutate({ reqId: req.id, status: 'APPROVED' })}
-                      className="flex-1 py-2 rounded-full bg-primary hover:bg-primary-hover text-dark-bg font-bold flex items-center justify-center gap-1 transition duration-150"
+                      className="flex-1 py-1.5 bg-primary hover:bg-primary-hover text-dark-bg font-bold flex items-center justify-center gap-1 transition duration-150 rounded-none uppercase text-[10px]"
                     >
-                      <Check className="w-3.5 h-3.5" />
+                      <Check className="w-3 h-3" />
                       <span>Approve</span>
                     </button>
                     <button
                       onClick={() => handleRequestMutation.mutate({ reqId: req.id, status: 'REJECTED' })}
-                      className="py-2 px-3 rounded-full bg-white/[0.05] hover:bg-red-500/10 hover:text-red-300 font-semibold border border-white/[0.07] flex items-center justify-center transition duration-150"
+                      className="py-1.5 px-2 bg-transparent border border-[#1C1C1E] text-dark-muted hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 font-bold flex items-center justify-center transition duration-150 rounded-none"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -657,7 +651,7 @@ export default function TrekDetail() {
       {/* Main Workspace Area (Tabs) */}
       <div className="lg:col-span-3 space-y-6">
         {/* Workspace Tab Bar */}
-        <div className="flex rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/[0.07] p-1.5 gap-1 overflow-x-auto">
+        <div className="flex bg-[#0A0A0C] border border-[#1C1C1E] p-1 gap-1 overflow-x-auto rounded-none">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -665,17 +659,12 @@ export default function TrekDetail() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="relative flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-full transition-colors duration-200 shrink-0 focus:outline-none"
+                className={`relative flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-colors duration-150 shrink-0 focus:outline-none rounded-none uppercase ${
+                  isActive ? 'bg-primary text-dark-bg' : 'text-dark-muted hover:text-dark-text bg-transparent'
+                }`}
               >
-                {isActive && (
-                  <motion.span
-                    layoutId="trekTabPill"
-                    className="absolute inset-0 rounded-full bg-primary"
-                    transition={{ type: 'spring', duration: 0.4, bounce: 0.2 }}
-                  />
-                )}
-                <Icon className={`w-4 h-4 relative z-10 ${isActive ? 'text-dark-bg' : 'text-dark-muted'}`} />
-                <span className={`relative z-10 ${isActive ? 'text-dark-bg' : 'text-dark-muted'}`}>{tab.label}</span>
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{tab.label}</span>
               </button>
             );
           })}
@@ -685,10 +674,10 @@ export default function TrekDetail() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
             className="min-h-[55vh]"
           >
             {activeTab === 'chat' && <ChatTab trekId={id} members={trek.members} />}
@@ -699,106 +688,136 @@ export default function TrekDetail() {
           </motion.div>
         </AnimatePresence>
 
+        {/* Edit Gathering Modal */}
         <AnimatePresence>
           {isEditOpen && editForm && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4 font-mono text-xs">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+                className="fixed inset-0 bg-black/85"
                 onClick={() => setIsEditOpen(false)}
               />
               <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.98 }}
-                className="w-full max-w-lg z-10 bg-[#0c0c0c]/95 border border-white/[0.08] rounded-[1.75rem] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 15 }}
+                className="w-full max-w-lg z-10 bg-[#0A0A0C] border border-[#1C1C1E] p-6 shadow-[0_30px_70px_rgba(0,0,0,0.9)] rounded-none"
               >
-                <div className="flex items-start justify-between mb-5">
+                <div className="flex items-start justify-between mb-5 border-b border-[#1C1C1E] pb-3 bg-[#050505] -mx-6 px-6 -mt-6 pt-5">
                   <div>
-                    <h2 className="text-lg font-bold text-dark-text">Edit gathering</h2>
-                    <p className="text-xs text-dark-muted mt-1">Admins can update workspace settings.</p>
+                    <h2 className="text-xs font-bold text-dark-text uppercase tracking-wider">Modify Gathering</h2>
+                    <p className="text-[9px] text-dark-muted mt-1 uppercase">Coordinator settings adjustment workspace.</p>
                   </div>
-                  <button onClick={() => setIsEditOpen(false)} className="p-2 rounded-full bg-white/[0.04] text-dark-muted hover:text-dark-text">
-                    <X className="w-4 h-4" />
+                  <button onClick={() => setIsEditOpen(false)} className="p-1 border border-[#1C1C1E] bg-[#000000] text-dark-muted hover:text-primary rounded-none">
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
                 {editError && (
-                  <div className="mb-4 flex items-center gap-2 p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
+                  <div className="mb-4 flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] uppercase">
                     <AlertTriangle className="w-4 h-4 shrink-0" />
                     {editError}
                   </div>
                 )}
 
-                <form onSubmit={handleEditSubmit} className="space-y-4 text-sm">
-                  <input
-                    value={editForm.title}
-                    onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                    placeholder="Gathering title"
-                    required
-                    className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
-                  />
-                  <input
-                    value={editForm.destination}
-                    onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
-                    placeholder="Location"
-                    className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
-                  />
-                  <textarea
-                    value={editForm.description}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    placeholder="Details"
-                    required
-                    rows="3"
-                    className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50 resize-none"
-                  />
+                <form onSubmit={handleEditSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[01] Title *</label>
+                    <input
+                      value={editForm.title}
+                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                      placeholder="Gathering title"
+                      required
+                      className="w-full px-4 py-3 bg-[#000000] border border-[#1C1C1E] text-dark-text focus:outline-none focus:border-primary rounded-none font-sans text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[02] Location / Coordinates</label>
+                    <input
+                      value={editForm.destination}
+                      onChange={(e) => setEditForm({ ...editForm, destination: e.target.value })}
+                      placeholder="Location"
+                      className="w-full px-4 py-3 bg-[#000000] border border-[#1C1C1E] text-dark-text focus:outline-none focus:border-primary rounded-none font-sans text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[03] Details *</label>
+                    <textarea
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                      placeholder="Details"
+                      required
+                      rows="3"
+                      className="w-full px-4 py-3 bg-[#000000] border border-[#1C1C1E] text-dark-text focus:outline-none focus:border-primary resize-none rounded-none font-sans text-xs"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="date"
-                      value={editForm.date}
-                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
-                    />
-                    <input
-                      type="number"
-                      min="2"
-                      max="100"
-                      value={editForm.capacity}
-                      onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })}
-                      required
-                      className="w-full px-4 py-3 rounded-full bg-white/[0.04] border border-white/[0.08] text-dark-text focus:outline-none focus:border-primary/50"
-                    />
+                    <div>
+                      <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[04] Date *</label>
+                      <input
+                        type="date"
+                        value={editForm.date}
+                        onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                        required
+                        className="w-full px-4 py-3 bg-[#000000] border border-[#1C1C1E] text-dark-text focus:outline-none focus:border-primary rounded-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[05] Capacity *</label>
+                      <input
+                        type="number"
+                        min="2"
+                        max="100"
+                        value={editForm.capacity}
+                        onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })}
+                        required
+                        className="w-full px-4 py-3 bg-[#000000] border border-[#1C1C1E] text-dark-text focus:outline-none focus:border-primary rounded-none"
+                      />
+                    </div>
                   </div>
-                  <div className="flex rounded-full bg-white/[0.04] border border-white/[0.08] p-1 gap-1">
-                    {['EASY', 'MODERATE', 'HARD', 'EXTREME'].map((diff) => (
-                      <button
-                        key={diff}
-                        type="button"
-                        onClick={() => setEditForm({ ...editForm, difficulty: diff })}
-                        className={`flex-1 py-2 rounded-full font-bold text-[10px] ${editForm.difficulty === diff ? 'bg-primary text-dark-bg' : 'text-dark-muted'}`}
-                      >
-                        {diff === 'MODERATE' ? 'MOD' : diff}
-                      </button>
-                    ))}
+
+                  <div>
+                    <span className="block text-[9px] font-bold uppercase tracking-wider text-dark-muted mb-1.5">[06] Intensity Category</span>
+                    <div className="flex bg-[#000000] border border-[#1C1C1E] p-1 gap-1 rounded-none">
+                      {['EASY', 'MODERATE', 'HARD', 'EXTREME'].map((diff) => (
+                        <button
+                          key={diff}
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, difficulty: diff })}
+                          className={`flex-1 py-2 rounded-none font-bold text-[9px] uppercase tracking-wider transition-colors duration-150 focus:outline-none ${
+                            editForm.difficulty === diff ? 'bg-primary text-dark-bg' : 'text-dark-muted hover:text-dark-text'
+                          }`}
+                        >
+                          {diff}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <label className="flex items-center gap-2 text-xs text-dark-muted font-semibold px-2">
+
+                  <div className="flex items-center gap-2 py-1 px-1">
                     <input
+                      id="edit-is-private"
                       type="checkbox"
                       checked={editForm.is_private}
                       onChange={(e) => setEditForm({ ...editForm, is_private: e.target.checked })}
-                      className="w-4 h-4"
+                      className="border-[#1C1C1E] bg-[#000000] text-primary focus:ring-transparent w-4 h-4 cursor-pointer rounded-none"
                     />
-                    Private gathering
-                  </label>
+                    <label htmlFor="edit-is-private" className="text-[10px] font-bold text-dark-muted cursor-pointer select-none uppercase">
+                      Restrict Access (Make private)
+                    </label>
+                  </div>
+
                   <div className="flex gap-3 pt-2">
-                    <button type="button" onClick={() => setIsEditOpen(false)} className="flex-1 py-3 rounded-full border border-white/10 text-dark-text font-bold text-xs">
-                      Cancel
+                    <button type="button" onClick={() => setIsEditOpen(false)} className="flex-1 py-3 bg-transparent border border-[#333] text-dark-muted hover:text-dark-text font-bold text-xs uppercase tracking-wider rounded-none">
+                      CANCEL
                     </button>
-                    <button type="submit" disabled={updateGatheringMutation.isPending} className="flex-1 py-3 rounded-full bg-primary text-dark-bg font-bold text-xs disabled:opacity-50">
-                      {updateGatheringMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    <button type="submit" disabled={updateGatheringMutation.isPending} className="flex-1 py-3 bg-primary hover:bg-primary-hover text-dark-bg font-bold text-xs uppercase tracking-wider rounded-none disabled:opacity-40">
+                      {updateGatheringMutation.isPending ? 'SAVING...' : 'SAVE CHANGES'}
                     </button>
                   </div>
                 </form>

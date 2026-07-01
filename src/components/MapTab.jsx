@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Plus, Trash2, MapPin, Droplet, Tent, Flag, Navigation } from 'lucide-react';
@@ -15,7 +15,7 @@ const getCheckpointIcon = (type) => {
   };
   const color = colors[type] || colors.CHECKPOINT;
   return L.divIcon({
-    html: `<div style="background-color:${color};width:12px;height:12px;border:2px solid #0A0A0A;box-shadow:0 0 0 1.5px ${color},0 2px 6px rgba(0,0,0,0.7);"></div>`,
+    html: `<div style="background-color:${color};width:12px;height:12px;border:2px solid #000;box-shadow:0 0 0 1.5px ${color};"></div>`,
     className: 'custom-div-icon',
     iconSize: [12, 12],
     iconAnchor: [6, 6],
@@ -90,10 +90,10 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 items-start font-mono text-xs">
 
       {/* ── Map ── */}
-      <div className="lg:col-span-3 relative border border-[#1E1E1E] overflow-hidden" style={{ height: '50vh' }}>
+      <div className="lg:col-span-3 relative border border-[#1C1C1E] overflow-hidden" style={{ height: '50vh' }}>
         {/* Top accent */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-primary z-[500]" />
 
@@ -121,16 +121,16 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
               icon={getCheckpointIcon(cp.type)}
             >
               <Popup>
-                <div className="space-y-1.5 text-xs text-left min-w-[120px]">
-                  <p className="font-black text-dark-text uppercase tracking-wide">{cp.name}</p>
-                  <p className="text-[10px] text-dark-muted font-bold tracking-widest uppercase">{cp.type}</p>
+                <div className="space-y-1.5 text-xs text-left min-w-[120px] font-mono">
+                  <p className="font-bold text-dark-text uppercase tracking-wide font-sans">{cp.name}</p>
+                  <p className="text-[9px] text-dark-muted font-bold tracking-widest uppercase">{cp.type}</p>
                   <p className="text-[9px] text-dark-muted font-mono">
                     {parseFloat(cp.latitude).toFixed(4)}, {parseFloat(cp.longitude).toFixed(4)}
                   </p>
                   {isOrganizer && (
                     <button
                       onClick={() => deleteCheckpointMutation.mutate(cp.id)}
-                      className="w-full mt-2 py-1.5 px-2 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/30 text-red-400 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 transition-colors duration-150"
+                      className="w-full mt-2 py-1.5 px-2 bg-red-500/10 hover:bg-red-500 hover:text-white border border-red-500/30 text-red-400 font-bold text-[9px] uppercase tracking-wider flex items-center justify-center gap-1 transition-colors duration-150 rounded-none"
                     >
                       <Trash2 className="w-3 h-3" />
                       Delete
@@ -147,7 +147,7 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
               icon={getCheckpointIcon('CHECKPOINT')}
             >
               <Popup>
-                <span className="text-xs font-black uppercase tracking-wide text-primary">
+                <span className="text-xs font-bold uppercase tracking-wide text-primary font-mono">
                   New checkpoint here
                 </span>
               </Popup>
@@ -157,11 +157,11 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
 
         {/* HUD overlay */}
         {isOrganizer && (
-          <div className="absolute bottom-0 left-0 right-0 z-[400] flex items-center gap-2 px-4 py-2.5 bg-[#0A0A0A]/90 border-t border-[#1E1E1E] pointer-events-none">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+          <div className="absolute bottom-0 left-0 right-0 z-[400] flex items-center gap-2 px-4 py-2.5 bg-[#0A0A0C]/90 border-t border-[#1C1C1E] pointer-events-none">
+            <div className="w-1.5 h-1.5 bg-primary animate-pulse shrink-0 rounded-none" />
             <Navigation className="w-3 h-3 text-primary shrink-0" />
-            <span className="text-[10px] text-dark-muted tracking-[0.12em] uppercase">
-              Click anywhere to plot route checkpoints
+            <span className="text-[9px] text-dark-muted tracking-[0.12em] uppercase">
+              SYS // Click map to plot checkpoints
             </span>
           </div>
         )}
@@ -171,26 +171,26 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
       <div className="lg:col-span-1 space-y-4 text-left">
         {isOrganizer && selectedLocation ? (
           /* Add checkpoint form */
-          <form onSubmit={handleAddCheckpoint} className="bg-[#0A0A0A] border border-primary/30">
+          <form onSubmit={handleAddCheckpoint} className="bg-[#0A0A0C] border border-primary/30 rounded-none">
             <div className="h-[2px] bg-primary" />
             <div className="p-4 space-y-4 text-xs">
               <div className="flex items-center gap-2">
                 <div className="w-0.5 h-4 bg-primary shrink-0" />
                 <Plus className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-[11px] font-black text-dark-text tracking-[0.15em] uppercase">
+                <span className="text-[10px] font-bold text-dark-text tracking-[0.15em] uppercase">
                   Plot Checkpoint
                 </span>
               </div>
 
               {formError && (
-                <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-300 text-[11px] tracking-wide">
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] tracking-wide rounded-none">
                   {formError}
                 </div>
               )}
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
-                  Checkpoint Name
+                <label className="block text-[9px] font-bold uppercase tracking-[0.15em] text-dark-muted mb-1.5">
+                  [01] Checkpoint Name
                 </label>
                 <input
                   type="text"
@@ -198,13 +198,13 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
                   value={checkpointName}
                   onChange={(e) => setCheckpointName(e.target.value)}
                   placeholder="Campsite A, Water Source 1..."
-                  className="w-full p-2.5 bg-[#0D0D0D] border border-[#1E1E1E] text-dark-text text-xs focus:outline-none focus:border-primary/50 transition-colors"
+                  className="w-full p-2.5 bg-[#000000] border border-[#1C1C1E] text-dark-text text-xs focus:outline-none focus:border-primary transition-colors rounded-none font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-dark-muted mb-1.5">
-                  Point Category
+                <label className="block text-[9px] font-bold uppercase tracking-[0.15em] text-dark-muted mb-1.5">
+                  [02] Point Category
                 </label>
                 <div className="space-y-1">
                   {Object.entries(TYPE_CONFIG).map(([val, cfg]) => {
@@ -214,10 +214,10 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
                         key={val}
                         type="button"
                         onClick={() => setCheckpointType(val)}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.1em] border transition-colors duration-100 focus:outline-none ${
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.1em] border transition-colors duration-100 focus:outline-none rounded-none ${
                           checkpointType === val
                             ? 'bg-primary border-primary text-dark-bg'
-                            : 'bg-transparent border-[#1E1E1E] text-dark-muted hover:text-dark-text hover:border-[#333]'
+                            : 'bg-transparent border-[#1C1C1E] text-dark-muted hover:text-dark-text hover:border-[#333]'
                         }`}
                       >
                         <Icon className="w-3 h-3 shrink-0" />
@@ -228,49 +228,49 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
                 </div>
               </div>
 
-              <div className="flex gap-2 font-mono text-[10px] text-[#444] px-1">
-                <span>LAT {selectedLocation.lat.toFixed(4)}</span>
-                <span className="text-[#222]">·</span>
-                <span>LNG {selectedLocation.lng.toFixed(4)}</span>
+              <div className="flex gap-2 font-mono text-[9px] text-dark-muted/60 px-1">
+                <span>LAT: {selectedLocation.lat.toFixed(5)}</span>
+                <span>·</span>
+                <span>LNG: {selectedLocation.lng.toFixed(5)}</span>
               </div>
 
               <div className="flex gap-2 pt-1">
                 <button
                   type="submit"
                   disabled={addCheckpointMutation.isPending}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-black text-[10px] uppercase tracking-[0.15em] transition-colors duration-150 focus:outline-none disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-dark-bg font-bold text-[10px] uppercase tracking-[0.15em] transition-colors duration-150 focus:outline-none disabled:opacity-50 rounded-none"
                 >
-                  {addCheckpointMutation.isPending ? 'Saving...' : 'Save Point'}
+                  {addCheckpointMutation.isPending ? 'SAVING...' : 'SAVE POINT'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedLocation(null)}
-                  className="py-2.5 px-3 bg-transparent border border-[#333] text-dark-muted hover:text-dark-text text-[10px] uppercase tracking-[0.1em] transition-colors duration-150 focus:outline-none"
+                  className="py-2.5 px-3 bg-transparent border border-[#333] text-dark-muted hover:text-dark-text text-[10px] uppercase tracking-[0.1em] transition-colors duration-150 focus:outline-none rounded-none"
                 >
-                  Cancel
+                  CANCEL
                 </button>
               </div>
             </div>
           </form>
         ) : (
           /* Route checklist */
-          <div className="bg-[#0A0A0A] border border-[#1E1E1E]">
+          <div className="bg-[#0A0A0C] border border-[#1C1C1E] rounded-none">
             <div className="h-[2px] bg-primary w-8" />
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-0.5 h-4 bg-primary shrink-0" />
-                <span className="text-[10px] font-black text-dark-muted tracking-[0.2em] uppercase">
+                <span className="text-[9px] font-bold text-dark-muted tracking-[0.2em] uppercase">
                   Route Checklist
                 </span>
                 {sortedCheckpoints.length > 0 && (
-                  <span className="ml-auto text-[10px] font-black text-dark-bg bg-primary px-1.5 py-0.5">
+                  <span className="ml-auto text-[9px] font-bold text-dark-bg bg-primary px-1.5 py-0.5">
                     {sortedCheckpoints.length}
                   </span>
                 )}
               </div>
 
               {sortedCheckpoints.length === 0 ? (
-                <p className="text-[11px] text-dark-muted leading-relaxed tracking-wide">
+                <p className="text-[10px] text-dark-muted leading-relaxed tracking-wide font-sans">
                   {isOrganizer
                     ? 'Click on the map to mark water sources, campsites, and route points.'
                     : 'No checkpoints mapped yet. Wait for the organizer to plan the route.'}
@@ -281,17 +281,17 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
                     const cfg = TYPE_CONFIG[cp.type] || TYPE_CONFIG.CHECKPOINT;
                     const Icon = cfg.icon;
                     return (
-                      <div key={cp.id} className="flex items-center gap-2.5 text-xs border-b border-[#141414] pb-2 last:border-0 last:pb-0">
-                        <span className="text-[10px] font-black text-[#333] font-mono w-4 shrink-0 text-right">
+                      <div key={cp.id} className="flex items-center gap-2.5 text-xs border-b border-[#1C1C1E]/55 pb-2 last:border-0 last:pb-0">
+                        <span className="text-[9px] font-bold text-dark-muted font-mono w-4 shrink-0 text-right">
                           {String(idx + 1).padStart(2, '0')}
                         </span>
-                        <div className="w-px h-5 bg-[#1E1E1E] shrink-0" />
+                        <div className="w-px h-5 bg-[#1C1C1E] shrink-0" />
                         <Icon className={`w-3 h-3 shrink-0 ${cfg.color}`} />
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-dark-text text-[11px] uppercase tracking-wide truncate">
+                          <p className="font-bold text-dark-text text-[10px] uppercase tracking-wide truncate font-sans">
                             {cp.name}
                           </p>
-                          <p className="text-[9px] text-[#444] tracking-[0.12em] uppercase">{cp.type}</p>
+                          <p className="text-[8px] text-dark-muted/60 tracking-[0.12em] uppercase font-mono">{cp.type}</p>
                         </div>
                       </div>
                     );
@@ -303,9 +303,9 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
         )}
 
         {/* Checkpoint type legend */}
-        <div className="bg-[#0A0A0A] border border-[#1E1E1E]">
+        <div className="bg-[#0A0A0C] border border-[#1C1C1E] rounded-none">
           <div className="p-3 space-y-1.5">
-            <span className="text-[9px] font-black text-[#333] tracking-[0.2em] uppercase block mb-2">Legend</span>
+            <span className="text-[9px] font-bold text-dark-muted tracking-[0.2em] uppercase block mb-2 border-b border-[#1C1C1E] pb-1.5">Legend</span>
             {Object.entries(TYPE_CONFIG).map(([type, cfg]) => {
               const Icon = cfg.icon;
               const dotColors = {
@@ -315,11 +315,11 @@ export default function MapTab({ trekId, checkpoints = [], isOrganizer }) {
               return (
                 <div key={type} className="flex items-center gap-2">
                   <div
-                    className="w-2.5 h-2.5 shrink-0"
-                    style={{ backgroundColor: dotColors[type], border: '1.5px solid #0A0A0A', boxShadow: `0 0 0 1px ${dotColors[type]}` }}
+                    className="w-2 h-2 shrink-0 rounded-none"
+                    style={{ backgroundColor: dotColors[type], border: '1px solid #000', boxShadow: `0 0 0 1px ${dotColors[type]}` }}
                   />
                   <Icon className={`w-3 h-3 shrink-0 ${cfg.color}`} />
-                  <span className="text-[10px] text-dark-muted tracking-[0.08em] uppercase">{cfg.label}</span>
+                  <span className="text-[9px] text-dark-muted tracking-[0.08em] uppercase">{cfg.label}</span>
                 </div>
               );
             })}
