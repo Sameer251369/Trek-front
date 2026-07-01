@@ -10,7 +10,7 @@ const BACKGROUND_IMAGES = [
   '/logan-voss-hT0nO6d2QVE-unsplash.jpg',
 ];
 
-const SLIDE_DURATION_MS = 8000; 
+const SLIDE_DURATION_MS = 8000;
 const CROSSFADE_DURATION_S = 2.0;
 
 const containerVariants = {
@@ -56,8 +56,8 @@ export default function Auth({ isLogin, onAuthSuccess }) {
       }
     } catch (err) {
       setError(
-        err.response?.data?.detail || 
-        err.response?.data?.message || 
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
         (err.response?.data && Object.values(err.response.data).join(' ')) ||
         'AUTHENTICATION_ERROR: Invalid coordinates or key.'
       );
@@ -107,7 +107,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
         className="w-full max-w-[420px] relative z-15 my-auto"
       >
         <div className="hud-corner-cross hud-corner-cross-tl hud-corner-cross-tr hud-corner-cross-bl hud-corner-cross-br border border-[#1C1C1E] p-8 sm:p-10 bg-[#0A0A0C] shadow-[0_25px_60px_rgba(0,0,0,0.85)] relative">
-          
+
           {/* Top Status Header */}
           <div className="flex justify-between items-center mb-6 border-b border-[#1C1C1E]/60 pb-3 font-mono text-[9px] text-dark-muted uppercase tracking-wider">
             <span>RallyGrid // auth_net</span>
@@ -231,16 +231,16 @@ export default function Auth({ isLogin, onAuthSuccess }) {
             >
               {isLogin ? (
                 <p>
-                  No terminal credentials?{' '}
+                  New user?{' '}
                   <Link to="/register" className="text-primary hover:underline font-bold transition-all">
-                    [ ESTABLISH_LINK ]
+                    [ create account ]
                   </Link>
                 </p>
               ) : (
                 <p>
                   Existing coordinates?{' '}
                   <Link to="/login" className="text-primary hover:underline font-bold transition-all">
-                    [ INITIATE_SESSION ]
+                    [ LOG IN ]
                   </Link>
                 </p>
               )}
