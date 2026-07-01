@@ -284,7 +284,7 @@ function ExpeditionsFloatingDock({ user }) {
             {organized.length > 0 && (
               <div>
                 <div className="px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-dark-muted sticky top-0 bg-[#0A0A0C] border-b border-[#1C1C1E]/50">
-                  SYS // ORGANIZING ({organized.length})
+                   ORGANIZING ({organized.length})
                 </div>
                 <div>
                   {organized.map((trek, idx) => renderTrekRow(trek, { showPending: true }, idx))}
@@ -294,7 +294,7 @@ function ExpeditionsFloatingDock({ user }) {
             {joined.length > 0 && (
               <div className="mt-2">
                 <div className="px-5 py-2 text-[10px] font-bold uppercase tracking-wider text-dark-muted sticky top-0 bg-[#0A0A0C] border-b border-[#1C1C1E]/50">
-                  SYS // JOINED ({joined.length})
+                   JOINED ({joined.length})
                 </div>
                 <div>
                   {joined.map((trek, idx) => renderTrekRow(trek, { showPending: false }, idx))}
@@ -318,7 +318,7 @@ function ExpeditionsFloatingDock({ user }) {
         </span>
         <span className="hidden sm:block text-left">
           <span className="block text-[9px] font-bold uppercase tracking-wider text-dark-bg/85">
-            SYS // EXPEDITIONS
+             EXPEDITIONS
           </span>
           <span className="block max-w-[200px] truncate text-xs font-bold uppercase">
             {organized.length} ORG • {joined.length} JOINED
