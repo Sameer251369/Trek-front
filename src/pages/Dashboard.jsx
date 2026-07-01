@@ -333,8 +333,8 @@ export default function Dashboard() {
               key={diff}
               onClick={() => setSelectedDifficulty(diff)}
               className={`px-3 h-full rounded-none text-[10px] font-bold tracking-wide uppercase transition-colors duration-150 focus:outline-none shrink-0 ${selectedDifficulty === diff
-                  ? 'bg-primary text-dark-bg'
-                  : 'text-dark-muted hover:text-dark-text'
+                ? 'bg-primary text-dark-bg'
+                : 'text-dark-muted hover:text-dark-text'
                 }`}
             >
               {diff === 'MODERATE' ? 'MOD' : diff}
@@ -465,7 +465,7 @@ export default function Dashboard() {
                   <div>
                     {trek.destination && (
                       <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-primary mb-1 line-clamp-1">
-                        LOC // {trek.destination}
+                        {trek.destination}
                       </p>
                     )}
                     <h3 className="text-sm font-bold text-dark-text leading-tight line-clamp-1 font-sans uppercase">
@@ -512,7 +512,7 @@ export default function Dashboard() {
                         to={`/trek/${trek.id}`}
                         className="w-full flex items-center justify-center gap-2 py-2 bg-transparent border border-primary/40 text-primary hover:bg-primary hover:text-dark-bg font-bold text-[10px] uppercase tracking-wider transition-colors duration-150 no-underline rounded-none font-mono"
                       >
-                        ACCESS TERMINAL
+                        OPEN WORKSPACE
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     ) : trek.join_request_status === 'PENDING' ? (
@@ -655,8 +655,8 @@ export default function Dashboard() {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                               setNewTrekImage(file);
-                               setNewTrekImagePreview(URL.createObjectURL(file));
+                              setNewTrekImage(file);
+                              setNewTrekImagePreview(URL.createObjectURL(file));
                             }
                           }}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -739,8 +739,8 @@ export default function Dashboard() {
                           type="button"
                           onClick={() => setNewTrekDiff(diff)}
                           className={`flex-1 py-2 rounded-none font-bold text-[9px] uppercase tracking-wider transition-colors duration-150 focus:outline-none ${newTrekDiff === diff
-                              ? 'bg-primary text-dark-bg'
-                              : 'text-dark-muted hover:text-dark-text'
+                            ? 'bg-primary text-dark-bg'
+                            : 'text-dark-muted hover:text-dark-text'
                             }`}
                         >
                           {diff}
