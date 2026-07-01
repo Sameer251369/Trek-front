@@ -125,7 +125,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                 <Compass className="w-5 h-5 text-primary relative z-10" strokeWidth={1.5} />
               </div>
               <h2 className="text-lg font-mono font-bold tracking-[0.12em] text-dark-text uppercase">
-                {isLogin ? 'INITIATE SESSION' : 'ESTABLISH REGISTER'}
+                {isLogin ? 'LOG IN' : 'ESTABLISH REGISTER'}
               </h2>
               <p className="text-[10px] text-dark-muted font-mono uppercase mt-1 tracking-tight">
                 {isLogin ? 'Enter authorization sequence' : 'Configure registration profile details'}
@@ -218,7 +218,7 @@ export default function Auth({ isLogin, onAuthSuccess }) {
                   {loading ? (
                     <div className="w-3.5 h-3.5 border-2 border-dark-bg border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    isLogin ? 'INITIATE_SESSION' : 'REGISTER_PROFILE'
+                    isLogin ? 'LOG IN ' : 'REGISTER_PROFILE'
                   )}
                 </button>
               </motion.div>
