@@ -120,7 +120,7 @@ function getChatLastSeen(trekId) {
 function Badge({ count, className = '', color = 'red' }) {
   if (!count || count <= 0) return null;
   const colorClasses = color === 'red'
-    ? 'bg-primary text-dark-bg font-bold border border-primary'
+    ? 'bg-[#FF2D2D] text-white font-bold border border-[#FF2D2D]'
     : 'bg-[#111] text-primary border border-primary/30';
   return (
     <span
@@ -233,7 +233,7 @@ function ExpeditionsFloatingDock({ user }) {
         <Link
           to={`/trek/${trek.id}`}
           onClick={() => setIsOpen(false)}
-          className={`flex items-center gap-3 px-4 py-3 border-b border-[#141416]/60 hover:bg-[#E8FF00]/5 transition duration-150 no-underline group ${hasAlert ? 'border-l border-l-primary' : ''}`}
+          className={`flex items-center gap-3 px-4 py-3 border-b border-[#141416]/60 hover:bg-[#E8FF00]/5 transition duration-150 no-underline group ${hasAlert ? 'border-l border-l-[#FF2D2D]' : ''}`}
         >
           <span className="w-8 h-8 border border-[#1C1C1E] text-dark-muted flex items-center justify-center shrink-0 group-hover:border-primary group-hover:text-primary transition duration-150 bg-[#000000]">
             <Settings className="w-3.5 h-3.5" />
@@ -245,20 +245,20 @@ function ExpeditionsFloatingDock({ user }) {
             <span className="flex items-center gap-1.5 text-[10px] text-dark-muted font-mono tracking-tight truncate mt-0.5">
               <span>{new Date(trek.date).toISOString().split('T')[0]}</span>
               {unreadCount > 0 && (
-                <span className="text-primary font-semibold">
+                <span className="text-[#FF2D2D] font-semibold">
                   [+{unreadCount} MSG]
                 </span>
               )}
               {pendingCount > 0 && (
-                <span className="text-primary font-semibold">
+                <span className="text-[#FF2D2D] font-semibold">
                   [+{pendingCount} REQ]
                 </span>
               )}
             </span>
           </span>
           <div className="flex items-center gap-1 shrink-0 font-mono">
-            {pendingCount > 0 && <span className="text-[10px] text-primary font-bold">[!]</span>}
-            {unreadCount > 0 && <span className="text-[10px] text-primary font-bold">[{unreadCount}]</span>}
+            {pendingCount > 0 && <span className="text-[10px] text-[#FF2D2D] font-bold">[!]</span>}
+            {unreadCount > 0 && <span className="text-[10px] text-[#FF2D2D] font-bold">[{unreadCount}]</span>}
           </div>
           <ArrowRight className="w-3.5 h-3.5 text-dark-muted shrink-0 group-hover:text-primary group-hover:translate-x-0.5 transition duration-150" />
         </Link>
@@ -267,7 +267,11 @@ function ExpeditionsFloatingDock({ user }) {
   };
 
   return (
-    <div ref={dockRef} className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-3 font-mono">
+    <div
+      ref={dockRef}
+      className="fixed right-4 bottom-4 z-[100000] flex flex-col items-end gap-3 font-mono"
+      style={{ zIndex: 100000 }}
+    >
       <AnimatePresence>
         {isOpen && (
           <motion.div
